@@ -1,0 +1,12 @@
+routers:
+  - type: ReverseProxy
+    pattern: /
+    target-url: http://localhost:8081/
+    filters:
+      - type: SessionFilter
+        name: Main session filter
+        session-cookie: session
+
+      - type: LogFilter
+        name: Log session
+        template: "FILTER_NAME: {{.Filter.Name}}\n"
