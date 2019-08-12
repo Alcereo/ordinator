@@ -35,24 +35,57 @@ func TestNewSessionCreate(t *testing.T) {
 	}
 }
 
+func TestExistingSessionGet(t *testing.T) {
+	// Given
+	cacheProvider := CreateStubCacheProvider()
+	identifier := cacheProvider.CreateNewIdentifier()
+	cacheProvider.PutSession(&Session{
+		id: identifier,
+	})
+
+	cookieName := "test-session"
+	handler := CreateSessionFilter("Filter name", cookieName, cacheProvider)
+	handler.SetNext(&StubHandler{})
+
+	req := httptest.NewRequest("GET", "/foo", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  cookieName,
+		Value: identifier,
+	})
+	w := httptest.NewRecorder()
+
+	// When
+	handler.Handle(w, req)
+
+	// Then
+	value := nextChainRequest.Context().Value(SessionContextKey)
+	if value == nil {
+		t.Fatalf("Session must be set in context")
+	}
+	session := value.(*Session)
+	if session.id != "1" {
+		t.Fatalf("Session must have apropriate id filed")
+	}
+}
+
+// Internal
+
 func assertHasSetCookie(name string, value string, response *http.Response, t *testing.T) {
 	for _, cookie := range response.Cookies() {
 		if cookie.Name == name {
 			if cookie.Value != value {
-				t.Fatalf("Cookie %s require value %s, but found: %s", name, value, cookie.Value)
+				t.Fatalf("Set-Cookie header %s require value %s, but found: %s", name, value, cookie.Value)
 			} else {
 				return
 			}
 		}
 	}
-	t.Fatalf("Cookie %s=%s not found in response", name, value)
+	t.Fatalf("Set-Cookie header %s=%s not found in response", name, value)
 }
-
-// Internal
 
 type StubCacheProvider struct {
 	incrementer int
-	sessionMap map[string]*Session
+	sessionMap  map[string]*Session
 }
 
 func (provider *StubCacheProvider) GetSession(identifier string) *Session {
@@ -71,7 +104,7 @@ func (provider *StubCacheProvider) PutSession(session *Session) {
 func CreateStubCacheProvider() *StubCacheProvider {
 	return &StubCacheProvider{
 		incrementer: 0,
-		sessionMap: make(map[string]*Session),
+		sessionMap:  make(map[string]*Session),
 	}
 }
 

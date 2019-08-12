@@ -40,13 +40,13 @@ func (filter *SessionFilterHandler) Handle(writer http.ResponseWriter, request *
 	if filter.next != nil {
 		(*filter.next).Handle(writer, newRequest)
 	} else {
-		log.Printf("Log filter error: %v. Next handler is empty", filter.Name,)
+		log.Printf("Log filter error: %v. Next handler is empty", filter.Name)
 	}
 }
 
 func (filter *SessionFilterHandler) getOrCreateSession(writer http.ResponseWriter, request *http.Request) *Session {
 	cookie, err := request.Cookie(filter.SessionCookieName)
-	if err != nil && cookie != nil {
+	if err == nil && cookie != nil {
 		return filter.SessionCache.GetSession(cookie.Value)
 	} else {
 		session := Session{
@@ -68,9 +68,9 @@ func (filter *SessionFilterHandler) getOrCreateSession(writer http.ResponseWrite
 
 func CreateSessionFilter(Name string, cookieName string, provider SessionCacheProvider) *SessionFilterHandler {
 	return &SessionFilterHandler{
-		Name: Name,
+		Name:              Name,
 		SessionCookieName: cookieName,
-		SessionCache: provider,
-		next: nil,
+		SessionCache:      provider,
+		next:              nil,
 	}
 }
