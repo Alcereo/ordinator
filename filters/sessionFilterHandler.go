@@ -10,13 +10,18 @@ import (
 const SessionContextKey string = "SessionContextKey"
 
 type Session struct {
-	id string
+	id     SessionId
+	cookie SessionCookie
 }
 
+type SessionId string
+type SessionCookie string
+
 type SessionCacheProvider interface {
-	GetSession(identifier string) *Session
-	CreateNewIdentifier() string
 	PutSession(session *Session)
+	GetSession(cookie SessionCookie) *Session
+	CreateNewIdentifier() SessionId
+	CreateNewCookie() SessionCookie
 }
 
 type SessionFilterHandler struct {
@@ -47,17 +52,18 @@ func (filter *SessionFilterHandler) Handle(writer http.ResponseWriter, request *
 func (filter *SessionFilterHandler) getOrCreateSession(writer http.ResponseWriter, request *http.Request) *Session {
 	cookie, err := request.Cookie(filter.SessionCookieName)
 	if err == nil && cookie != nil {
-		return filter.SessionCache.GetSession(cookie.Value)
+		return filter.SessionCache.GetSession(SessionCookie(cookie.Value))
 	} else {
 		session := Session{
-			id: filter.SessionCache.CreateNewIdentifier(),
+			cookie: filter.SessionCache.CreateNewCookie(),
+			id:     filter.SessionCache.CreateNewIdentifier(),
 		}
 		// Add to cache
 		filter.SessionCache.PutSession(&session)
 		// Add to cookie-set
 		newCookie := http.Cookie{
 			Name:  filter.SessionCookieName,
-			Value: session.id,
+			Value: string(session.cookie),
 		}
 		http.SetCookie(writer, &newCookie)
 		return &session

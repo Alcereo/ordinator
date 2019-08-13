@@ -23,24 +23,23 @@ func TestNewSessionCreate(t *testing.T) {
 
 	// Then
 	result := w.Result()
-	assertHasSetCookie(cookieName, "1", result, t)
+	assertHasSetCookie(cookieName, "c1", result, t)
 
 	value := nextChainRequest.Context().Value(SessionContextKey)
 	if value == nil {
 		t.Fatalf("Session must be set in context")
 	}
 	session := value.(*Session)
-	if session.id != "1" {
-		t.Fatalf("Session must have apropriate id filed")
-	}
+	assertSession(session, "i1", "c1", t)
 }
 
 func TestExistingSessionGet(t *testing.T) {
 	// Given
 	cacheProvider := CreateStubCacheProvider()
-	identifier := cacheProvider.CreateNewIdentifier()
+	cookie := cacheProvider.CreateNewCookie()
 	cacheProvider.PutSession(&Session{
-		id: identifier,
+		id:     cacheProvider.CreateNewIdentifier(),
+		cookie: cookie,
 	})
 
 	cookieName := "test-session"
@@ -50,7 +49,7 @@ func TestExistingSessionGet(t *testing.T) {
 	req := httptest.NewRequest("GET", "/foo", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  cookieName,
-		Value: identifier,
+		Value: string(cookie),
 	})
 	w := httptest.NewRecorder()
 
@@ -63,12 +62,19 @@ func TestExistingSessionGet(t *testing.T) {
 		t.Fatalf("Session must be set in context")
 	}
 	session := value.(*Session)
-	if session.id != "1" {
-		t.Fatalf("Session must have apropriate id filed")
-	}
+	assertSession(session, "i1", "c1", t)
 }
 
 // Internal
+
+func assertSession(session *Session, id string, cookie string, t *testing.T) {
+	if string(session.id) != id {
+		t.Fatalf("Expecting Session with id: %s actual:%s", id, session.id)
+	}
+	if string(session.cookie) != cookie {
+		t.Fatalf("Expecting Session with cookie: %s actual:%s", cookie, session.cookie)
+	}
+}
 
 func assertHasSetCookie(name string, value string, response *http.Response, t *testing.T) {
 	for _, cookie := range response.Cookies() {
@@ -84,27 +90,34 @@ func assertHasSetCookie(name string, value string, response *http.Response, t *t
 }
 
 type StubCacheProvider struct {
-	incrementer int
-	sessionMap  map[string]*Session
+	idIncrementer     int
+	cookieIncrementer int
+	sessionMap        map[SessionCookie]*Session
 }
 
-func (provider *StubCacheProvider) GetSession(identifier string) *Session {
-	return provider.sessionMap[identifier]
+func (provider *StubCacheProvider) CreateNewCookie() SessionCookie {
+	provider.cookieIncrementer += 1
+	return SessionCookie("c" + cast.ToString(provider.cookieIncrementer))
 }
 
-func (provider *StubCacheProvider) CreateNewIdentifier() string {
-	provider.incrementer += 1
-	return cast.ToString(provider.incrementer)
+func (provider *StubCacheProvider) GetSession(cookie SessionCookie) *Session {
+	return provider.sessionMap[cookie]
+}
+
+func (provider *StubCacheProvider) CreateNewIdentifier() SessionId {
+	provider.idIncrementer += 1
+	return SessionId("i" + cast.ToString(provider.idIncrementer))
 }
 
 func (provider *StubCacheProvider) PutSession(session *Session) {
-	provider.sessionMap[session.id] = session
+	provider.sessionMap[session.cookie] = session
 }
 
 func CreateStubCacheProvider() *StubCacheProvider {
 	return &StubCacheProvider{
-		incrementer: 0,
-		sessionMap:  make(map[string]*Session),
+		idIncrementer:     0,
+		cookieIncrementer: 0,
+		sessionMap:        make(map[SessionCookie]*Session),
 	}
 }
 
