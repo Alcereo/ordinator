@@ -2,7 +2,6 @@ package main
 
 import (
 	"balancer/balancer"
-	"balancer/cache"
 	"balancer/filters"
 	"fmt"
 	"github.com/spf13/viper"
@@ -54,13 +53,13 @@ func loadConfig() *ProxyConfiguration {
 
 func configInit() {
 	viper.SetConfigName("config")
-	viper.AddConfigPath(".")    // optionally look for config in the working directory
+	viper.AddConfigPath(".") // optionally look for config in the working directory
 
 	// Defaults
 	viper.SetDefault("port", 8080)
 
 	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil { // Handle errors reading the config file
+	if err != nil {             // Handle errors reading the config file
 		panic(fmt.Errorf("Fatal error config file: %s \n", err))
 	}
 }
@@ -72,7 +71,7 @@ func BuildFilterHandlers(filters []Filter, mainHandler balancer.RequestHandler) 
 
 	currentHandler := mainHandler
 
-	for i := len(filters)-1; i >= 0; i-- {
+	for i := len(filters) - 1; i >= 0; i-- {
 		filter := filters[i]
 
 		handler := buildFilterHandler(filter)
@@ -93,10 +92,10 @@ func buildFilterHandler(filter Filter) balancer.RequestChainedHandler {
 	case LogFilter:
 		log.Printf("Adding Log filter. Name: %s", filter.Name)
 		return filters.CreateLogFilter(filter.Name, filter.Template, nil)
-	case SessionFilter:
-		log.Printf("Adding session filter. Name: %s", filter.Name)
-		sessionCacheProvider := cache.CreateStubCacheProvider()
-		return filters.CreateSessionFilter(filter.SessionCookie, sessionCacheProvider)
+	//case SessionFilter:
+	//	log.Printf("Adding session filter. Name: %s", filter.Name)
+	//	sessionCacheProvider := cache.CreateStubCacheProvider()
+	//	return filters.CreateSessionFilter(filter.SessionCookie, sessionCacheProvider)
 	default:
 		panic(fmt.Errorf("Undefined filter type: %v.\n", filter.Type))
 	}
@@ -111,14 +110,14 @@ const (
 type FilterType string
 
 const (
-	LogFilter FilterType = "LogFilter"
+	LogFilter     FilterType = "LogFilter"
 	SessionFilter FilterType = "SessionFilter"
 )
 
 type Filter struct {
-	Type     FilterType
-	Name     string
-	Template string
+	Type          FilterType
+	Name          string
+	Template      string
 	SessionCookie string `mapstructure:"session-cookie"`
 }
 

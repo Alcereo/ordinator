@@ -11,16 +11,16 @@ import (
 const SessionContextKey string = "SessionContextKey"
 
 type Session struct {
-	id      SessionId
-	cookie  SessionCookie
-	expires time.Time
+	Id      SessionId
+	Cookie  SessionCookie
+	Expires time.Time
 }
 
 type SessionId string
 type SessionCookie string
 
-type SessionCacheProvider interface {
-	PutSession(session *Session)
+type SessionCachePort interface {
+	PutSession(session *Session) error
 	GetSession(cookie SessionCookie) *Session
 	RemoveSession(session *Session)
 	CreateNewIdentifier() SessionId
@@ -31,7 +31,7 @@ type SessionFilterHandler struct {
 	Name                   string
 	next                   *balancer.RequestHandler
 	SessionCookieName      string
-	SessionCache           SessionCacheProvider
+	SessionCache           SessionCachePort
 	CookieTTLHours         int
 	RenewCookieBeforeHours int
 }
@@ -39,7 +39,7 @@ type SessionFilterHandler struct {
 func CreateSessionFilter(
 	name string,
 	cookieName string,
-	provider SessionCacheProvider,
+	provider SessionCachePort,
 	cookieTTLHours int,
 	renewCookieBeforeHours int,
 ) *SessionFilterHandler {
@@ -75,7 +75,7 @@ func (filter *SessionFilterHandler) getOrCreateSession(writer http.ResponseWrite
 	cookie, err := request.Cookie(filter.SessionCookieName)
 	if err == nil && cookie != nil {
 		session := filter.SessionCache.GetSession(SessionCookie(cookie.Value))
-		if session.expires.Before(time.Now().Add(time.Hour * time.Duration(filter.RenewCookieBeforeHours))) {
+		if session.Expires.Before(time.Now().Add(time.Hour * time.Duration(filter.RenewCookieBeforeHours))) {
 			newSession := filter.createNewSession(writer, session)
 			filter.SessionCache.RemoveSession(session)
 			session = newSession
@@ -92,23 +92,23 @@ func (filter *SessionFilterHandler) createNewSession(writer http.ResponseWriter,
 	if oldSession == nil {
 		id = filter.SessionCache.CreateNewIdentifier()
 	} else {
-		id = oldSession.id
+		id = oldSession.Id
 	}
 
 	expires := time.Now().Add(time.Hour * time.Duration(filter.CookieTTLHours))
 	session := &Session{
-		cookie:  filter.SessionCache.CreateNewCookie(),
-		id:      id,
-		expires: expires,
+		Cookie:  filter.SessionCache.CreateNewCookie(),
+		Id:      id,
+		Expires: expires,
 	}
 
 	// Add to cache
-	filter.SessionCache.PutSession(session)
+	_ = filter.SessionCache.PutSession(session) // TODO Handle error
 
-	// Add to cookie-set
+	// Add to Cookie-set
 	newCookie := http.Cookie{
 		Name:    filter.SessionCookieName,
-		Value:   string(session.cookie),
+		Value:   string(session.Cookie),
 		Expires: expires,
 	}
 	http.SetCookie(writer, &newCookie)

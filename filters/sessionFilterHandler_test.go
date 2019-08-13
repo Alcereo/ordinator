@@ -39,9 +39,9 @@ func TestExistingSessionGet(t *testing.T) {
 	cacheProvider := CreateStubCacheProvider()
 	cookie := cacheProvider.CreateNewCookie()
 	cacheProvider.PutSession(&Session{
-		id:      cacheProvider.CreateNewIdentifier(),
-		cookie:  cookie,
-		expires: time.Now().Add(time.Hour * 12),
+		Id:      cacheProvider.CreateNewIdentifier(),
+		Cookie:  cookie,
+		Expires: time.Now().Add(time.Hour * 12),
 	})
 
 	cookieName := "test-session"
@@ -72,9 +72,9 @@ func TestRenewCookie(t *testing.T) {
 	cacheProvider := CreateStubCacheProvider()
 	cookie := cacheProvider.CreateNewCookie()
 	cacheProvider.PutSession(&Session{
-		id:      cacheProvider.CreateNewIdentifier(),
-		cookie:  cookie,
-		expires: time.Now().Add(time.Hour * 2),
+		Id:      cacheProvider.CreateNewIdentifier(),
+		Cookie:  cookie,
+		Expires: time.Now().Add(time.Hour * 2),
 	})
 
 	cookieName := "test-session"
@@ -104,17 +104,19 @@ func TestRenewCookie(t *testing.T) {
 	assertSession(session, "i1", "c2", time.Now().Add(time.Hour*5), t)
 }
 
+// TODO Put session error test
+
 // Internal
 
 func assertSession(session *Session, id string, cookie string, expiresBefore time.Time, t *testing.T) {
-	if string(session.id) != id {
-		t.Fatalf("Expecting Session with id: %s actual:%s", id, session.id)
+	if string(session.Id) != id {
+		t.Fatalf("Expecting Session with id: %s actual:%s", id, session.Id)
 	}
-	if string(session.cookie) != cookie {
-		t.Fatalf("Expecting Session with cookie: %s actual:%s", cookie, session.cookie)
+	if string(session.Cookie) != cookie {
+		t.Fatalf("Expecting Session with Cookie: %s actual:%s", cookie, session.Cookie)
 	}
-	if !session.expires.Before(expiresBefore) {
-		t.Fatalf("Expecting Session expires: %v is before: %v", session.expires, expiresBefore)
+	if !session.Expires.Before(expiresBefore) {
+		t.Fatalf("Expecting Session expires: %v is before: %v", session.Expires, expiresBefore)
 	}
 }
 
@@ -142,7 +144,7 @@ type StubCacheProvider struct {
 }
 
 func (provider *StubCacheProvider) RemoveSession(session *Session) {
-	provider.sessionMap[session.cookie] = nil
+	provider.sessionMap[session.Cookie] = nil
 }
 
 func (provider *StubCacheProvider) CreateNewCookie() SessionCookie {
@@ -159,8 +161,9 @@ func (provider *StubCacheProvider) CreateNewIdentifier() SessionId {
 	return SessionId("i" + cast.ToString(provider.idIncrementer))
 }
 
-func (provider *StubCacheProvider) PutSession(session *Session) {
-	provider.sessionMap[session.cookie] = session
+func (provider *StubCacheProvider) PutSession(session *Session) error {
+	provider.sessionMap[session.Cookie] = session
+	return nil
 }
 
 func CreateStubCacheProvider() *StubCacheProvider {
