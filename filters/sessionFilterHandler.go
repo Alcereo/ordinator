@@ -3,7 +3,7 @@ package filters
 import (
 	"balancer/balancer"
 	"context"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 )
@@ -21,7 +21,7 @@ type SessionCookie string
 
 type SessionCachePort interface {
 	PutSession(session *Session) error
-	GetSession(cookie SessionCookie) *Session
+	GetSession(cookie SessionCookie) (*Session, bool)
 	RemoveSession(session *Session)
 	CreateNewIdentifier() SessionId
 	CreateNewCookie() SessionCookie
@@ -74,16 +74,20 @@ func (filter *SessionFilterHandler) Handle(writer http.ResponseWriter, request *
 func (filter *SessionFilterHandler) getOrCreateSession(writer http.ResponseWriter, request *http.Request) *Session {
 	cookie, err := request.Cookie(filter.SessionCookieName)
 	if err == nil && cookie != nil {
-		session := filter.SessionCache.GetSession(SessionCookie(cookie.Value))
-		if session.Expires.Before(time.Now().Add(time.Hour * time.Duration(filter.RenewCookieBeforeHours))) {
-			newSession := filter.createNewSession(writer, session)
-			filter.SessionCache.RemoveSession(session)
-			session = newSession
+		session, found := filter.SessionCache.GetSession(SessionCookie(cookie.Value))
+		if found {
+			if !session.Expires.Before(time.Now().Add(time.Hour * time.Duration(filter.RenewCookieBeforeHours))) {
+				return session
+			} else {
+				newSession := filter.createNewSession(writer, session)
+				filter.SessionCache.RemoveSession(session)
+				return newSession
+			}
+		} else {
+			return filter.createNewSession(writer, nil)
 		}
-		return session
 	} else {
-		session := filter.createNewSession(writer, nil)
-		return session
+		return filter.createNewSession(writer, nil)
 	}
 }
 

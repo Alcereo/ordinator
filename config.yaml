@@ -1,3 +1,4 @@
+logLevel:
 routers:
   - type: ReverseProxy
     pattern: /
@@ -6,7 +7,13 @@ routers:
       - type: SessionFilter
         name: Main session filter
         session-cookie: session
+        cookie-ttl-hours: 24
+        renew-cookie-before-hours: 6
+        cache-adapter:
+          type: GoCache
+          evict-time-hours: 24
+          evict-schedule-time-hours: 2
 
       - type: LogFilter
-        name: Log session
-        template: "FILTER_NAME: {{.Filter.Name}}\n"
+        name: Simple requests log
+        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}}\n"

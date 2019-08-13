@@ -38,7 +38,7 @@ func TestExistingSessionGet(t *testing.T) {
 	// Given
 	cacheProvider := CreateStubCacheProvider()
 	cookie := cacheProvider.CreateNewCookie()
-	cacheProvider.PutSession(&Session{
+	_ = cacheProvider.PutSession(&Session{
 		Id:      cacheProvider.CreateNewIdentifier(),
 		Cookie:  cookie,
 		Expires: time.Now().Add(time.Hour * 12),
@@ -71,7 +71,7 @@ func TestRenewCookie(t *testing.T) {
 	// Given
 	cacheProvider := CreateStubCacheProvider()
 	cookie := cacheProvider.CreateNewCookie()
-	cacheProvider.PutSession(&Session{
+	_ = cacheProvider.PutSession(&Session{
 		Id:      cacheProvider.CreateNewIdentifier(),
 		Cookie:  cookie,
 		Expires: time.Now().Add(time.Hour * 2),
@@ -103,8 +103,6 @@ func TestRenewCookie(t *testing.T) {
 	session := value.(*Session)
 	assertSession(session, "i1", "c2", time.Now().Add(time.Hour*5), t)
 }
-
-// TODO Put session error test
 
 // Internal
 
@@ -152,8 +150,8 @@ func (provider *StubCacheProvider) CreateNewCookie() SessionCookie {
 	return SessionCookie("c" + cast.ToString(provider.cookieIncrementer))
 }
 
-func (provider *StubCacheProvider) GetSession(cookie SessionCookie) *Session {
-	return provider.sessionMap[cookie]
+func (provider *StubCacheProvider) GetSession(cookie SessionCookie) (*Session, bool) {
+	return provider.sessionMap[cookie], true // TODO Handle not found case
 }
 
 func (provider *StubCacheProvider) CreateNewIdentifier() SessionId {
@@ -163,7 +161,7 @@ func (provider *StubCacheProvider) CreateNewIdentifier() SessionId {
 
 func (provider *StubCacheProvider) PutSession(session *Session) error {
 	provider.sessionMap[session.Cookie] = session
-	return nil
+	return nil // TODO Handle error case
 }
 
 func CreateStubCacheProvider() *StubCacheProvider {

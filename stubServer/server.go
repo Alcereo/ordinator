@@ -8,14 +8,14 @@ import (
 
 func main() {
 
-	http.HandleFunc("/", mainHanlder)
+	http.HandleFunc("/", mainHandler)
 
 	port := 8081
 	log.Printf("Server starting on port %v", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
 }
 
-func mainHanlder(writer http.ResponseWriter, request *http.Request) {
+func mainHandler(writer http.ResponseWriter, request *http.Request) {
 	_, _ = fmt.Fprintf(writer, "%s %s\n", request.Method, request.URL.String())
 	_, _ = fmt.Fprintf(writer, "\n")
 	for header, value := range request.Header {
