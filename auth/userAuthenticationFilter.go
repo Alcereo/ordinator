@@ -37,9 +37,9 @@ func NewUserAuthenticationFilter(
 }
 
 func (filter *userAuthenticationFilter) Handle(writer http.ResponseWriter, request *http.Request) {
-	filter.updateRequestContext(request)
+	enchantedRequest := filter.updateRequestContext(request)
 	if filter.next != nil {
-		(*filter.next).Handle(writer, request)
+		(*filter.next).Handle(writer, enchantedRequest)
 	} else {
 		log.Debugf("User authentication filter: %v doesn't have next handler", filter.Name)
 	}

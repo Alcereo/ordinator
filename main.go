@@ -22,7 +22,7 @@ func main() {
 	configInit()
 	config := loadConfig()
 
-	log.SetLevel(log.TraceLevel)
+	setupLogging(config)
 
 	var PrimaryContext = &Context{
 		sessionCacheAdapters:  make(map[string]filters.SessionCachePort),
@@ -35,6 +35,19 @@ func main() {
 	port := viper.GetInt("port")
 	log.Printf("Server starting on port %v", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+}
+
+func setupLogging(config *ProxyConfiguration) {
+	switch config.LogLevel {
+	case info:
+		log.SetLevel(log.InfoLevel)
+	case debug:
+		log.SetLevel(log.DebugLevel)
+	case trace:
+		log.SetLevel(log.TraceLevel)
+	default:
+		log.SetLevel(log.WarnLevel)
+	}
 }
 
 func setupRouters(routers []Router, context *Context) {
@@ -151,10 +164,12 @@ func buildFilterHandler(filter Filter, context *Context) balancer.RequestChained
 		}
 		return filters.CreateSessionFilter(
 			filter.Name,
-			filter.SessionCookie,
+			filter.CookieName,
 			cacheAdapter,
 			filter.CookieTTLHours,
-			filter.RenewCookieBeforeHours,
+			filter.CookieRenewBeforeHours,
+			filter.CookiePath,
+			filter.CookieDomain,
 		)
 	case UserAuthenticationFilter:
 		log.Printf("Adding user authentication filter. Name: %s", filter.Name)
@@ -203,10 +218,12 @@ type Filter struct {
 	Type                   FilterType
 	Name                   string
 	Template               string
-	SessionCookie          string `mapstructure:"session-cookie"`
-	CookieTTLHours         int    `mapstructure:"cookie-ttl-hours"`
-	RenewCookieBeforeHours int    `mapstructure:"renew-cookie-before-hours"`
 	CacheAdapterIdentifier string `mapstructure:"cache-adapter-identifier"`
+	CookieDomain           string `mapstructure:"cookie-domain"`
+	CookiePath             string `mapstructure:"cookie-path"`
+	CookieName             string `mapstructure:"cookie-name"`
+	CookieTTLHours         int    `mapstructure:"cookie-ttl-hours"`
+	CookieRenewBeforeHours int    `mapstructure:"cookie-renew-before-hours"`
 }
 
 type Router struct {
@@ -218,7 +235,16 @@ type Router struct {
 	SuccessLoginUrl        string `mapstructure:"success-login-url"`
 }
 
+type LogLevel string
+
+const (
+	debug LogLevel = "debug"
+	trace LogLevel = "trace"
+	info  LogLevel = "info"
+)
+
 type ProxyConfiguration struct {
+	LogLevel      LogLevel `mapstructure:"log-level"`
 	Routers       []Router
 	CacheAdapters []CacheAdapter `mapstructure:"cache-adapters"`
 }

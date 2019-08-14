@@ -1,4 +1,4 @@
-logLevel:
+log-level: info
 
 cache-adapters:
   - identifier: PrimaryCacheAdapter
@@ -14,10 +14,12 @@ routers:
     filters:
       - type: SessionFilter
         name: Autentication session filter
-        session-cookie: session
-        cookie-ttl-hours: 24
-        renew-cookie-before-hours: 6
         cache-adapter-identifier: PrimaryCacheAdapter
+        cookie-domain: localhost
+        cookie-path: /api/v2
+        cookie-name: session
+        cookie-ttl-hours: 24
+        cookie-renew-before-hours: 6
 
   - type: ReverseProxy
     pattern: /api/v1/
@@ -25,14 +27,16 @@ routers:
     filters:
       - type: SessionFilter
         name: Session filter v1
-        session-cookie: session
-        cookie-ttl-hours: 24
-        renew-cookie-before-hours: 6
         cache-adapter-identifier: PrimaryCacheAdapter
+        cookie-domain: localhost
+        cookie-path: /
+        cookie-name: session
+        cookie-ttl-hours: 24
+        cookie-renew-before-hours: 6
 
       - type: LogFilter
         name: Simple requests log
-        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}\n"
+        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}"
 
   - type: ReverseProxy
     pattern: /api/v2/
@@ -40,10 +44,12 @@ routers:
     filters:
       - type: SessionFilter
         name: Session filter v2
-        session-cookie: session
-        cookie-ttl-hours: 24
-        renew-cookie-before-hours: 6
         cache-adapter-identifier: PrimaryCacheAdapter
+        cookie-domain: localhost
+        cookie-path: /
+        cookie-name: session
+        cookie-ttl-hours: 24
+        cookie-renew-before-hours: 6
 
       - type: UserAuthenticationFilter
         name: Autentication user data filter
@@ -51,4 +57,4 @@ routers:
 
       - type: LogFilter
         name: Simple requests log
-        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}\n"
+        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}} USERNAME:{{(.Request.Context.Value \"UserDataContextKey\").Username}}"
