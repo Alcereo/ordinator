@@ -20,7 +20,7 @@ routers:
 
       - type: LogFilter
         name: Simple requests log
-        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}}\n"
+        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}\n"
 
   - type: ReverseProxy
     pattern: /api/v2/
@@ -35,4 +35,4 @@ routers:
 
       - type: LogFilter
         name: Simple requests log
-        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}}\n"
+        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}\n"
