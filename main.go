@@ -11,12 +11,22 @@ import (
 	"net/url"
 )
 
+type Context struct {
+	cacheAdapters map[string]filters.SessionCachePort
+}
+
 func main() {
 
 	configInit()
 	config := loadConfig()
 
 	log.SetLevel(log.TraceLevel)
+
+	var PrimaryContext = &Context{
+		cacheAdapters: make(map[string]filters.SessionCachePort),
+	}
+
+	setupCacheAdapters(config.CacheAdapters, PrimaryContext)
 
 	for _, router := range config.Routers {
 		switch router.Type {
@@ -32,7 +42,7 @@ func main() {
 				TargetAddress: *targetUrl,
 			}
 
-			rootFilterHandler := BuildFilterHandlers(router.Filters, &handler)
+			rootFilterHandler := BuildFilterHandlers(router.Filters, &handler, PrimaryContext)
 			http.HandleFunc(router.Pattern, rootFilterHandler.Handle)
 
 		default:
@@ -43,6 +53,21 @@ func main() {
 	port := viper.GetInt("port")
 	log.Printf("Server starting on port %v", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+}
+
+func setupCacheAdapters(adapters []CacheAdapter, context *Context) {
+	for _, adapter := range adapters {
+		switch adapter.Type {
+		case GoCache:
+			context.cacheAdapters[adapter.Identifier] =
+				cache.NewGoCacheSessionCacheProvider(
+					adapter.ExpirationTimeHours,
+					adapter.EvictScheduleTimeHours,
+				)
+		default:
+			panic(fmt.Errorf("Undefined session filter cache adapter type: %v.\n", adapter.Type))
+		}
+	}
 }
 
 func loadConfig() *ProxyConfiguration {
@@ -67,7 +92,7 @@ func configInit() {
 	}
 }
 
-func BuildFilterHandlers(filters []Filter, mainHandler balancer.RequestHandler) (rootHandler balancer.RequestHandler) {
+func BuildFilterHandlers(filters []Filter, mainHandler balancer.RequestHandler, context *Context) (rootHandler balancer.RequestHandler) {
 	if filters == nil {
 		return mainHandler
 	}
@@ -77,7 +102,7 @@ func BuildFilterHandlers(filters []Filter, mainHandler balancer.RequestHandler) 
 	for i := len(filters) - 1; i >= 0; i-- {
 		filter := filters[i]
 
-		handler := buildFilterHandler(filter)
+		handler := buildFilterHandler(filter, context)
 
 		if handler == nil {
 			continue
@@ -90,35 +115,26 @@ func BuildFilterHandlers(filters []Filter, mainHandler balancer.RequestHandler) 
 	return currentHandler
 }
 
-func buildFilterHandler(filter Filter) balancer.RequestChainedHandler {
+func buildFilterHandler(filter Filter, context *Context) balancer.RequestChainedHandler {
 	switch filter.Type {
 	case LogFilter:
 		log.Printf("Adding Log filter. Name: %s", filter.Name)
 		return filters.CreateLogFilter(filter.Name, filter.Template, nil)
 	case SessionFilter:
 		log.Printf("Adding session filter. Name: %s", filter.Name)
-		sessionCacheAdapter := buildSessionCacheAdapter(filter.CacheAdapter)
+		cacheAdapter := context.cacheAdapters[filter.CacheAdapterIdentifier]
+		if cacheAdapter == nil {
+			panic(fmt.Errorf("Cache adapter with identifier '%v' not found.\n", filter.CacheAdapterIdentifier))
+		}
 		return filters.CreateSessionFilter(
 			filter.Name,
 			filter.SessionCookie,
-			sessionCacheAdapter,
+			cacheAdapter,
 			filter.CookieTTLHours,
 			filter.RenewCookieBeforeHours,
 		)
 	default:
 		panic(fmt.Errorf("Undefined filter type: %v.\n", filter.Type))
-	}
-}
-
-func buildSessionCacheAdapter(adapter CacheAdapter) filters.SessionCachePort {
-	switch adapter.Type {
-	case GoCache:
-		return cache.NewGoCacheSessionCacheProvider(
-			adapter.ExpirationTimeHours,
-			adapter.EvictScheduleTimeHours,
-		)
-	default:
-		panic(fmt.Errorf("Undefined session filter cache adapter type: %v.\n", adapter.Type))
 	}
 }
 
@@ -142,6 +158,7 @@ const (
 )
 
 type CacheAdapter struct {
+	Identifier             string
 	Type                   CacheAdapterType
 	ExpirationTimeHours    int `mapstructure:"evict-time-hours"`
 	EvictScheduleTimeHours int `mapstructure:"evict-schedule-time-hours"`
@@ -151,10 +168,10 @@ type Filter struct {
 	Type                   FilterType
 	Name                   string
 	Template               string
-	SessionCookie          string       `mapstructure:"session-cookie"`
-	CookieTTLHours         int          `mapstructure:"cookie-ttl-hours"`
-	RenewCookieBeforeHours int          `mapstructure:"renew-cookie-before-hours"`
-	CacheAdapter           CacheAdapter `mapstructure:"cache-adapter"`
+	SessionCookie          string `mapstructure:"session-cookie"`
+	CookieTTLHours         int    `mapstructure:"cookie-ttl-hours"`
+	RenewCookieBeforeHours int    `mapstructure:"renew-cookie-before-hours"`
+	CacheAdapterIdentifier string `mapstructure:"cache-adapter-identifier"`
 }
 
 type Router struct {
@@ -165,5 +182,6 @@ type Router struct {
 }
 
 type ProxyConfiguration struct {
-	Routers []Router
+	Routers       []Router
+	CacheAdapters []CacheAdapter `mapstructure:"cache-adapters"`
 }

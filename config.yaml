@@ -1,18 +1,37 @@
 logLevel:
+
+cache-adapters:
+  - identifier: PrimaryCacheAdapter
+    type: GoCache
+    evict-time-hours: 24
+    evict-schedule-time-hours: 2
+
 routers:
   - type: ReverseProxy
-    pattern: /
+    pattern: /api/v1/
     target-url: http://localhost:8081/
     filters:
       - type: SessionFilter
-        name: Main session filter
+        name: Session filter v1
         session-cookie: session
         cookie-ttl-hours: 24
         renew-cookie-before-hours: 6
-        cache-adapter:
-          type: GoCache
-          evict-time-hours: 24
-          evict-schedule-time-hours: 2
+        cache-adapter-identifier: PrimaryCacheAdapter
+
+      - type: LogFilter
+        name: Simple requests log
+        template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}}\n"
+
+  - type: ReverseProxy
+    pattern: /api/v2/
+    target-url: http://localhost:8081/
+    filters:
+      - type: SessionFilter
+        name: Session filter v2
+        session-cookie: session
+        cookie-ttl-hours: 24
+        renew-cookie-before-hours: 6
+        cache-adapter-identifier: PrimaryCacheAdapter
 
       - type: LogFilter
         name: Simple requests log
