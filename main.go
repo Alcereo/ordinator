@@ -1,6 +1,7 @@
 package main
 
 import (
+	"balancer/auth"
 	"balancer/balancer"
 	"balancer/cache"
 	"balancer/filters"
@@ -12,7 +13,8 @@ import (
 )
 
 type Context struct {
-	cacheAdapters map[string]filters.SessionCachePort
+	sessionCacheAdapters  map[string]filters.SessionCachePort
+	userAuthCacheAdapters map[string]auth.UserAuthCachePort
 }
 
 func main() {
@@ -23,12 +25,20 @@ func main() {
 	log.SetLevel(log.TraceLevel)
 
 	var PrimaryContext = &Context{
-		cacheAdapters: make(map[string]filters.SessionCachePort),
+		sessionCacheAdapters:  make(map[string]filters.SessionCachePort),
+		userAuthCacheAdapters: make(map[string]auth.UserAuthCachePort),
 	}
 
 	setupCacheAdapters(config.CacheAdapters, PrimaryContext)
+	setupRouters(config.Routers, PrimaryContext)
 
-	for _, router := range config.Routers {
+	port := viper.GetInt("port")
+	log.Printf("Server starting on port %v", port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+}
+
+func setupRouters(routers []Router, context *Context) {
+	for _, router := range routers {
 		switch router.Type {
 		case ReverseProxy:
 			log.Printf(
@@ -42,28 +52,41 @@ func main() {
 				TargetAddress: *targetUrl,
 			}
 
-			rootFilterHandler := BuildFilterHandlers(router.Filters, &handler, PrimaryContext)
+			rootFilterHandler := BuildFilterHandlers(router.Filters, &handler, context)
 			http.HandleFunc(router.Pattern, rootFilterHandler.Handle)
+		case GoogleOauth2Authorization:
+			log.Printf(
+				"Adding Google Oauth2 authorization endpoint. Pattern: %s;",
+				router.Pattern,
+			)
+			cacheAdapter := context.userAuthCacheAdapters[router.CacheAdapterIdentifier]
+			if cacheAdapter == nil {
+				panic(fmt.Errorf("User cache adapter with identifier '%v' not found.\n", router.CacheAdapterIdentifier))
+			}
+			handler := auth.NewGoogleOAuth2Provider(
+				cacheAdapter,
+				router.SuccessLoginUrl,
+			)
 
+			rootFilterHandler := BuildFilterHandlers(router.Filters, handler, context)
+			http.HandleFunc(router.Pattern, rootFilterHandler.Handle)
 		default:
 			panic(fmt.Errorf("Undefined router type: %v.\n", router.Type))
 		}
 	}
-
-	port := viper.GetInt("port")
-	log.Printf("Server starting on port %v", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
 }
 
 func setupCacheAdapters(adapters []CacheAdapter, context *Context) {
 	for _, adapter := range adapters {
 		switch adapter.Type {
 		case GoCache:
-			context.cacheAdapters[adapter.Identifier] =
-				cache.NewGoCacheSessionCacheProvider(
-					adapter.ExpirationTimeHours,
-					adapter.EvictScheduleTimeHours,
-				)
+			provider := cache.NewGoCacheSessionCacheProvider(
+				adapter.ExpirationTimeHours,
+				adapter.EvictScheduleTimeHours,
+			)
+			// GoCache can be both
+			context.sessionCacheAdapters[adapter.Identifier] = provider
+			context.userAuthCacheAdapters[adapter.Identifier] = provider
 		default:
 			panic(fmt.Errorf("Undefined session filter cache adapter type: %v.\n", adapter.Type))
 		}
@@ -122,9 +145,9 @@ func buildFilterHandler(filter Filter, context *Context) balancer.RequestChained
 		return filters.CreateLogFilter(filter.Name, filter.Template, nil)
 	case SessionFilter:
 		log.Printf("Adding session filter. Name: %s", filter.Name)
-		cacheAdapter := context.cacheAdapters[filter.CacheAdapterIdentifier]
+		cacheAdapter := context.sessionCacheAdapters[filter.CacheAdapterIdentifier]
 		if cacheAdapter == nil {
-			panic(fmt.Errorf("Cache adapter with identifier '%v' not found.\n", filter.CacheAdapterIdentifier))
+			panic(fmt.Errorf("Session cache adapter with identifier '%v' not found.\n", filter.CacheAdapterIdentifier))
 		}
 		return filters.CreateSessionFilter(
 			filter.Name,
@@ -132,6 +155,16 @@ func buildFilterHandler(filter Filter, context *Context) balancer.RequestChained
 			cacheAdapter,
 			filter.CookieTTLHours,
 			filter.RenewCookieBeforeHours,
+		)
+	case UserAuthenticationFilter:
+		log.Printf("Adding user authentication filter. Name: %s", filter.Name)
+		cacheAdapter := context.userAuthCacheAdapters[filter.CacheAdapterIdentifier]
+		if cacheAdapter == nil {
+			panic(fmt.Errorf("User cache adapter with identifier '%v' not found.\n", filter.CacheAdapterIdentifier))
+		}
+		return auth.NewUserAuthenticationFilter(
+			cacheAdapter,
+			filter.Name,
 		)
 	default:
 		panic(fmt.Errorf("Undefined filter type: %v.\n", filter.Type))
@@ -141,14 +174,16 @@ func buildFilterHandler(filter Filter, context *Context) balancer.RequestChained
 type RouterType string
 
 const (
-	ReverseProxy RouterType = "ReverseProxy"
+	ReverseProxy              RouterType = "ReverseProxy"
+	GoogleOauth2Authorization RouterType = "GoogleOauth2Authorization"
 )
 
 type FilterType string
 
 const (
-	LogFilter     FilterType = "LogFilter"
-	SessionFilter FilterType = "SessionFilter"
+	LogFilter                FilterType = "LogFilter"
+	SessionFilter            FilterType = "SessionFilter"
+	UserAuthenticationFilter FilterType = "UserAuthenticationFilter"
 )
 
 type CacheAdapterType string
@@ -175,10 +210,12 @@ type Filter struct {
 }
 
 type Router struct {
-	TargetUrl string `mapstructure:"target-url"`
-	Type      RouterType
-	Pattern   string
-	Filters   []Filter
+	TargetUrl              string `mapstructure:"target-url"`
+	Type                   RouterType
+	Pattern                string
+	Filters                []Filter
+	CacheAdapterIdentifier string `mapstructure:"cache-adapter-identifier"`
+	SuccessLoginUrl        string `mapstructure:"success-login-url"`
 }
 
 type ProxyConfiguration struct {

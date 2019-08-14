@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"balancer/auth"
 	"balancer/filters"
 	"github.com/patrickmn/go-cache"
 	"github.com/satori/go.uuid"
@@ -28,7 +29,7 @@ func (adapter *goCacheSessionCacheAdapter) PutSession(session *filters.Session) 
 func (adapter *goCacheSessionCacheAdapter) GetSession(cookie filters.SessionCookie) (*filters.Session, bool) {
 	session, found := adapter.cookieCache.Get(string(cookie))
 	if found {
-		return session.(*filters.Session), found
+		return session.(*filters.Session), true
 	} else {
 		return nil, false
 	}
@@ -44,4 +45,19 @@ func (*goCacheSessionCacheAdapter) CreateNewIdentifier() filters.SessionId {
 
 func (*goCacheSessionCacheAdapter) CreateNewCookie() filters.SessionCookie {
 	return filters.SessionCookie(uuid.NewV1().String())
+}
+
+// UserAuthenticationPort implementation
+
+func (adapter *goCacheSessionCacheAdapter) FindUserData(session *filters.Session) (*auth.UserData, bool) {
+	userData, found := adapter.cookieCache.Get(string(session.Id))
+	if found {
+		return userData.(*auth.UserData), true
+	} else {
+		return nil, false
+	}
+}
+
+func (adapter *goCacheSessionCacheAdapter) PutUserData(session *filters.Session, userData *auth.UserData) error {
+	return adapter.cookieCache.Add(string(session.Id), userData, cache.DefaultExpiration)
 }

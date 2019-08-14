@@ -2,9 +2,9 @@ package filters
 
 import (
 	"balancer/balancer"
-	"log"
+	"bytes"
+	log "github.com/sirupsen/logrus"
 	"net/http"
-	"os"
 	templ "text/template"
 )
 
@@ -26,14 +26,17 @@ func (filter *LogFilterHandler) Handle(writer http.ResponseWriter, request *http
 		request,
 		filter,
 	}
-	err := filter.template.Execute(os.Stdout, data)
+	var tpl bytes.Buffer
+	err := filter.template.Execute(&tpl, data)
 	if err != nil {
-		log.Printf("Log filter error: %v. Template error: %v", filter.Name, err)
+		log.Warnf("Log filter error: %v. Template error: %v", filter.Name, err)
 	}
+
+	log.Info(tpl.String())
 	if filter.next != nil {
 		(*filter.next).Handle(writer, request)
 	} else {
-		log.Printf("Log filter error: %v. Next handler is empty", filter.Name,)
+		log.Debugf("Log filter error: %v. Next handler is empty", filter.Name)
 	}
 
 }
@@ -43,12 +46,12 @@ func (filter *LogFilterHandler) Handle(writer http.ResponseWriter, request *http
 func CreateLogFilter(name string, template string, next balancer.RequestHandler) *LogFilterHandler {
 	parse, err := templ.New(name).Parse(template)
 	if err != nil {
-		log.Printf("Log filter templ error: %v. Skip filter", err)
+		log.Warnf("Log filter templ error: %v. Skip filter", err)
 		return nil
 	}
 	return &LogFilterHandler{
-		next: &next,
-		Name: name,
+		next:     &next,
+		Name:     name,
 		template: parse,
 	}
 }

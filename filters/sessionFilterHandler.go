@@ -61,6 +61,7 @@ func (filter *SessionFilterHandler) Handle(writer http.ResponseWriter, request *
 
 	session := filter.getOrCreateSession(writer, request)
 	// Add to context
+	log.Debugf("Retrieved session: %v", session)
 	newContext := context.WithValue(request.Context(), SessionContextKey, session)
 	newRequest := request.WithContext(newContext)
 
@@ -114,6 +115,7 @@ func (filter *SessionFilterHandler) createNewSession(writer http.ResponseWriter,
 		Name:    filter.SessionCookieName,
 		Value:   string(session.Cookie),
 		Expires: expires,
+		Path:    "/api/v2/",
 	}
 	http.SetCookie(writer, &newCookie)
 

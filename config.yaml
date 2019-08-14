@@ -7,6 +7,18 @@ cache-adapters:
     evict-schedule-time-hours: 2
 
 routers:
+  - type: GoogleOauth2Authorization
+    pattern: /authentication/google
+    success-login-url: /api/v2/
+    cache-adapter-identifier: PrimaryCacheAdapter
+    filters:
+      - type: SessionFilter
+        name: Autentication session filter
+        session-cookie: session
+        cookie-ttl-hours: 24
+        renew-cookie-before-hours: 6
+        cache-adapter-identifier: PrimaryCacheAdapter
+
   - type: ReverseProxy
     pattern: /api/v1/
     target-url: http://localhost:8081/
@@ -31,6 +43,10 @@ routers:
         session-cookie: session
         cookie-ttl-hours: 24
         renew-cookie-before-hours: 6
+        cache-adapter-identifier: PrimaryCacheAdapter
+
+      - type: UserAuthenticationFilter
+        name: Autentication user data filter
         cache-adapter-identifier: PrimaryCacheAdapter
 
       - type: LogFilter
