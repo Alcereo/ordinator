@@ -1,4 +1,4 @@
-log-level: info
+log-level: debug
 
 cache-adapters:
   - identifier: PrimaryCacheAdapter
@@ -20,6 +20,23 @@ routers:
         cookie-name: session
         cookie-ttl-hours: 24
         cookie-renew-before-hours: 6
+
+      - type: LogFilter
+        name: Simple requests log
+        template: "
+          === Authentication request ===\n
+          {{.Request.Method}} {{.Request.URL}} {{.Request.Proto}}\n
+          \n
+          Query attrs:\n
+          {{range $key, $value := .Request.URL.Query}}
+          {{$key}}={{$value}}\n
+          {{end}}
+          \n
+          Headers:\n
+          {{range $key, $value := .Request.Header}}
+          {{$key}}={{$value}}\n
+          {{end}}
+        "
 
   - type: ReverseProxy
     pattern: /api/v1/

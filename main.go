@@ -8,6 +8,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 	"net/http"
 	"net/url"
 )
@@ -21,8 +22,10 @@ func main() {
 
 	configInit()
 	config := loadConfig()
-
 	setupLogging(config)
+
+	bytes, _ := yaml.Marshal(config)
+	log.Tracef("Resolved config:\n%+v", string(bytes))
 
 	var PrimaryContext = &Context{
 		sessionCacheAdapters:  make(map[string]filters.SessionCachePort),
@@ -30,7 +33,7 @@ func main() {
 	}
 
 	setupCacheAdapters(config.CacheAdapters, PrimaryContext)
-	setupRouters(config.Routers, PrimaryContext)
+	setupRouters(config.Routers, config.GoogleSecret, PrimaryContext)
 
 	port := viper.GetInt("port")
 	log.Printf("Server starting on port %v", port)
@@ -54,7 +57,7 @@ func setupLogging(config *ProxyConfiguration) {
 	}
 }
 
-func setupRouters(routers []Router, context *Context) {
+func setupRouters(routers []Router, googleSecret GoogleSecret, context *Context) {
 	for _, router := range routers {
 		switch router.Type {
 		case ReverseProxy:
@@ -83,6 +86,8 @@ func setupRouters(routers []Router, context *Context) {
 			handler := auth.NewGoogleOAuth2Provider(
 				cacheAdapter,
 				router.SuccessLoginUrl,
+				googleSecret.ClientId,
+				googleSecret.ClientSecret,
 			)
 
 			rootFilterHandler := BuildFilterHandlers(router.Filters, handler, context)
@@ -116,6 +121,13 @@ func loadConfig() *ProxyConfiguration {
 	if err != nil {
 		panic(fmt.Errorf("Fatal error config file: %s \n", err))
 	}
+
+	viper.SetEnvPrefix("gw")
+	_ = viper.BindEnv("GOOGLE_CLIENT_ID")
+	config.GoogleSecret.ClientId = viper.GetString("GOOGLE_CLIENT_ID")
+
+	_ = viper.BindEnv("GOOGLE_CLIENT_SECRET")
+	config.GoogleSecret.ClientSecret = viper.GetString("GOOGLE_CLIENT_SECRET")
 	return &config
 }
 
@@ -247,8 +259,14 @@ const (
 	info  LogLevel = "info"
 )
 
+type GoogleSecret struct {
+	ClientId     string `mapstructure:"client-id"`
+	ClientSecret string `mapstructure:"client-secret"`
+}
+
 type ProxyConfiguration struct {
-	LogLevel      LogLevel `mapstructure:"log-level"`
+	GoogleSecret  GoogleSecret `mapstructure:"google-secret"`
+	LogLevel      LogLevel     `mapstructure:"log-level"`
 	Routers       []Router
 	CacheAdapters []CacheAdapter `mapstructure:"cache-adapters"`
 }
