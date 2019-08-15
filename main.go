@@ -38,6 +38,10 @@ func main() {
 }
 
 func setupLogging(config *ProxyConfiguration) {
+	log.SetFormatter(&log.TextFormatter{
+		ForceColors: true,
+	})
+
 	switch config.LogLevel {
 	case info:
 		log.SetLevel(log.InfoLevel)
