@@ -1,4 +1,4 @@
-log-level: debug
+log-level: info
 
 cache-adapters:
   - identifier: PrimaryCacheAdapter
@@ -16,7 +16,7 @@ routers:
         name: Autentication session filter
         cache-adapter-identifier: PrimaryCacheAdapter
         cookie-domain: localhost
-        cookie-path: /api/v2
+        cookie-path: /
         cookie-name: session
         cookie-ttl-hours: 24
         cookie-renew-before-hours: 6

@@ -61,7 +61,7 @@ func setupRouters(routers []Router, googleSecret GoogleSecret, context *Context)
 	for _, router := range routers {
 		switch router.Type {
 		case ReverseProxy:
-			log.Printf(
+			log.Debugf(
 				"Adding Reverse proxy router. Pattern: %s; Target: %s",
 				router.Pattern,
 				router.TargetUrl,
@@ -75,7 +75,7 @@ func setupRouters(routers []Router, googleSecret GoogleSecret, context *Context)
 			rootFilterHandler := BuildFilterHandlers(router.Filters, &handler, context)
 			http.HandleFunc(router.Pattern, rootFilterHandler.Handle)
 		case GoogleOauth2Authorization:
-			log.Printf(
+			log.Debugf(
 				"Adding Google Oauth2 authorization endpoint. Pattern: %s;",
 				router.Pattern,
 			)
@@ -170,10 +170,10 @@ func BuildFilterHandlers(filters []Filter, mainHandler balancer.RequestHandler, 
 func buildFilterHandler(filter Filter, context *Context) balancer.RequestChainedHandler {
 	switch filter.Type {
 	case LogFilter:
-		log.Printf("Adding Log filter. Name: %s", filter.Name)
+		log.Debugf("Adding Log filter. Name: %s", filter.Name)
 		return filters.CreateLogFilter(filter.Name, filter.Template, nil)
 	case SessionFilter:
-		log.Printf("Adding session filter. Name: %s", filter.Name)
+		log.Debugf("Adding session filter. Name: %s", filter.Name)
 		cacheAdapter := context.sessionCacheAdapters[filter.CacheAdapterIdentifier]
 		if cacheAdapter == nil {
 			panic(fmt.Errorf("Session cache adapter with identifier '%v' not found.\n", filter.CacheAdapterIdentifier))
@@ -188,7 +188,7 @@ func buildFilterHandler(filter Filter, context *Context) balancer.RequestChained
 			filter.CookieDomain,
 		)
 	case UserAuthenticationFilter:
-		log.Printf("Adding user authentication filter. Name: %s", filter.Name)
+		log.Debugf("Adding user authentication filter. Name: %s", filter.Name)
 		cacheAdapter := context.userAuthCacheAdapters[filter.CacheAdapterIdentifier]
 		if cacheAdapter == nil {
 			panic(fmt.Errorf("User cache adapter with identifier '%v' not found.\n", filter.CacheAdapterIdentifier))

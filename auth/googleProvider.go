@@ -48,7 +48,7 @@ func (router *googleOAuth2Provider) Handle(writer http.ResponseWriter, request *
 
 	userData, err := router.getUserData(request)
 	if err != nil {
-		logrus.Errorf("User data not found. %v", err)
+		logrus.Errorf("User data getting error. %v", err)
 		writer.WriteHeader(403)
 		return
 	}
@@ -67,6 +67,32 @@ func (router *googleOAuth2Provider) Handle(writer http.ResponseWriter, request *
 func (router *googleOAuth2Provider) getUserData(request *http.Request) (*UserData, error) {
 
 	// Get code from request
+	accessCode, err := getAccessCode(request)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := router.retrieveAccessToken(*accessCode)
+	if err != nil {
+		return nil, err
+	}
+
+	googleUserInfo, err := getUserInfo(token.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	logrus.Debugf("Authentication successful. %+v", googleUserInfo)
+	return &UserData{
+		Identifier: googleUserInfo.Identifier,
+		Username:   googleUserInfo.Username,
+		Email:      googleUserInfo.Email,
+		Picture:    googleUserInfo.Picture,
+		Locale:     googleUserInfo.Locale,
+	}, nil
+}
+
+func getAccessCode(request *http.Request) (*string, error) {
 	if err := request.URL.Query().Get("error"); err != "" {
 		return nil, errors.New(fmt.Sprintf("Error while authentication. Reason: %v", err))
 	}
@@ -74,47 +100,10 @@ func (router *googleOAuth2Provider) getUserData(request *http.Request) (*UserDat
 	if accessCode == "" {
 		return nil, errors.New(fmt.Sprintf("Error while authentication. Reason: 'code' query param not found or empty"))
 	}
-
-	response, err := router.retrieveAccessToken(accessCode)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get user data;
-	req, err := http.NewRequest(
-		"GET",
-		"https://www.googleapis.com/oauth2/v3/userinfo",
-		nil,
-	)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Error while authentication. Building request error. Reason: %v", err))
-	}
-	req.Header.Set("Authorization", "Bearer "+response.AccessToken)
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", err))
-	}
-	responseBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", err))
-	}
-	if resp.StatusCode != 200 {
-		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", string(responseBody)))
-	}
-
-	var googleAuthTokenResponse GoogleUserInfo
-	if err := json.Unmarshal(responseBody, &googleAuthTokenResponse); err != nil {
-		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", err))
-	}
-
-	logrus.Debugf("Successful retrieve auth token, %v", googleAuthTokenResponse)
-	return &UserData{
-		Username: googleAuthTokenResponse.Username,
-	}, nil
+	return &accessCode, nil
 }
 
-func (router *googleOAuth2Provider) retrieveAccessToken(accessCode string) (*GoogleOAuth2TokenResponse, error) {
+func (router *googleOAuth2Provider) retrieveAccessToken(accessCode string) (*GoogleOAuth2Token, error) {
 	requestPayload := GoogleRequestBuilder{
 		Code:         accessCode,
 		ClientId:     router.googleClientId,
@@ -143,20 +132,54 @@ func (router *googleOAuth2Provider) retrieveAccessToken(accessCode string) (*Goo
 	if resp.StatusCode != 200 {
 		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", string(responseBody)))
 	}
-	var googleAuthTokenResponse GoogleOAuth2TokenResponse
+	var googleAuthTokenResponse GoogleOAuth2Token
 	if err := json.Unmarshal(responseBody, &googleAuthTokenResponse); err != nil {
 		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", err))
 	}
 	return &googleAuthTokenResponse, nil
 }
 
+func getUserInfo(accessToken string) (*GoogleUserInfo, error) {
+	req, err := http.NewRequest(
+		"GET",
+		"https://www.googleapis.com/oauth2/v3/userinfo",
+		nil,
+	)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Error while authentication. Building request error. Reason: %v", err))
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", err))
+	}
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", err))
+	}
+	if resp.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", string(responseBody)))
+	} else {
+		logrus.Tracef("Get response from google: %+v", string(responseBody))
+	}
+
+	var googleUserInfo GoogleUserInfo
+	if err := json.Unmarshal(responseBody, &googleUserInfo); err != nil {
+		return nil, errors.New(fmt.Sprintf("Error while authentication. Get token request error. Reason: %v", err))
+	}
+	return &googleUserInfo, nil
+}
+
 type GoogleUserInfo struct {
 	Identifier string `json:"sub"`
 	Username   string `json:"name"`
+	Picture    string `json:"picture"`
 	Email      string `json:"email"`
+	Locale     string `json:"locale"`
 }
 
-type GoogleOAuth2TokenResponse struct {
+type GoogleOAuth2Token struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int    `json:"expires_in"`
@@ -172,11 +195,12 @@ type GoogleRequestBuilder struct {
 }
 
 func (builder *GoogleRequestBuilder) String() string {
-	return fmt.Sprintf("code=%s"+
-		"&client_id=%s"+
-		"&client_secret=%s"+
-		"&redirect_uri=%s"+
-		"&grant_type=%s",
+	return fmt.Sprintf(
+		"code=%s"+
+			"&client_id=%s"+
+			"&client_secret=%s"+
+			"&redirect_uri=%s"+
+			"&grant_type=%s",
 		builder.Code,
 		builder.ClientId,
 		builder.ClientSecret,

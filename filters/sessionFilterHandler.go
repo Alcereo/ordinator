@@ -67,24 +67,24 @@ func (filter *SessionFilterHandler) Handle(writer http.ResponseWriter, request *
 
 	session := filter.getOrCreateSession(writer, request)
 	// Add to context
-	log.Debugf("Retrieved session: %v", session)
+	log.Debugf("Retrieved session: %+v", session)
 	newContext := context.WithValue(request.Context(), SessionContextKey, session)
 	newRequest := request.WithContext(newContext)
 
 	if filter.next != nil {
 		(*filter.next).Handle(writer, newRequest)
 	} else {
-		log.Debugf("Log filter error: %v. Next handler is empty", filter.Name)
+		log.Debugf("Log filter error: %+v. Next handler is empty", filter.Name)
 	}
 }
 
 func (filter *SessionFilterHandler) getOrCreateSession(writer http.ResponseWriter, request *http.Request) *Session {
 	cookie, err := request.Cookie(filter.SessionCookieName)
 	if err == nil && cookie != nil {
-		log.Tracef("Found cookie in the request context: %v", cookie.Value)
+		log.Tracef("Found cookie in the request context: %+v", cookie.Value)
 		session, found := filter.SessionCache.GetSession(SessionCookie(cookie.Value))
 		if found {
-			log.Tracef("Session found in cache. %v", session)
+			log.Tracef("Session found in cache. %+v", session)
 			if !session.Expires.Before(time.Now().Add(time.Hour * time.Duration(filter.RenewCookieBeforeHours))) {
 				log.Tracef("Session is valid")
 				return session

@@ -11,7 +11,11 @@ import (
 const UserDataContextKey string = "UserDataContextKey"
 
 type UserData struct {
-	Username string
+	Username   string
+	Identifier string
+	Email      string
+	Picture    string
+	Locale     string
 }
 
 type UserAuthCachePort interface {
