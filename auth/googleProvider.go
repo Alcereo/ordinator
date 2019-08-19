@@ -46,6 +46,14 @@ func (router *googleOAuth2Provider) Handle(writer http.ResponseWriter, request *
 		return
 	}
 
+	session := sessionNillable.(*filters.Session)
+	_, found := router.cacheProvider.FindUserData(session)
+	if found {
+		logrus.Debugf("User data for session already exist. Skip authentication.")
+		http.Redirect(writer, request, router.successLoginUrl, 302)
+		return
+	}
+
 	userData, err := router.getUserData(request)
 	if err != nil {
 		logrus.Errorf("User data getting error. %v", err)
@@ -53,7 +61,6 @@ func (router *googleOAuth2Provider) Handle(writer http.ResponseWriter, request *
 		return
 	}
 
-	session := sessionNillable.(*filters.Session)
 	if err := router.cacheProvider.PutUserData(session, userData); err != nil {
 		logrus.Errorf("Saving user data to cache error. %v", err)
 		writer.WriteHeader(500)
@@ -61,7 +68,7 @@ func (router *googleOAuth2Provider) Handle(writer http.ResponseWriter, request *
 	}
 
 	logrus.Debugf("User data successful retrieved and stored to cache. %v", userData)
-	http.Redirect(writer, request, router.successLoginUrl, 301)
+	http.Redirect(writer, request, router.successLoginUrl, 302)
 }
 
 func (router *googleOAuth2Provider) getUserData(request *http.Request) (*UserData, error) {
