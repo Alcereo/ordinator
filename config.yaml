@@ -72,6 +72,13 @@ routers:
         name: Autentication user data filter
         cache-adapter-identifier: PrimaryCacheAdapter
 
+      - type: UserDataSenderFilter
+        name: Filter wich sends user data to server
+        cache-adapter-identifier: PrimaryCacheAdapter
+        user-data-serializer:
+          type: JwtUserDataSerializer
+          secret: some-jwt-secret-to-use-in-the-server
+
       - type: LogFilter
         name: Simple requests log
         template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}} USERNAME:{{(.Request.Context.Value \"UserDataContextKey\").Username}}"

@@ -5,6 +5,7 @@ import (
 	"balancer/balancer"
 	"balancer/cache"
 	"balancer/filters"
+	"balancer/serializers"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -197,8 +198,31 @@ func buildFilterHandler(filter Filter, context *Context) balancer.RequestChained
 			cacheAdapter,
 			filter.Name,
 		)
+	case UserDataSenderFilter:
+		log.Debugf("Adding user data sending filter. Name: %s", filter.Name)
+		cacheAdapter := context.userAuthCacheAdapters[filter.CacheAdapterIdentifier]
+		if cacheAdapter == nil {
+			panic(fmt.Errorf("User cache adapter with identifier '%v' not found.\n", filter.CacheAdapterIdentifier))
+		}
+		serializer := buildUserDataSerializer(&filter)
+		return auth.NewUserDataSenderFilter(
+			cacheAdapter,
+			filter.Name,
+			serializer,
+		)
 	default:
 		panic(fmt.Errorf("Undefined filter type: %v.\n", filter.Type))
+	}
+}
+
+func buildUserDataSerializer(filter *Filter) auth.UserDataSerializer {
+	switch filter.UserDataTypeSerializer.Type {
+	case JwtUserDataSerializer:
+		return serializers.NewJwtUserDataSerializer(
+			filter.UserDataTypeSerializer.Secret,
+		)
+	default:
+		panic(fmt.Errorf("Undefined user data serializer type: %v.\n", filter.UserDataTypeSerializer.Type))
 	}
 }
 
@@ -215,6 +239,7 @@ const (
 	LogFilter                FilterType = "LogFilter"
 	SessionFilter            FilterType = "SessionFilter"
 	UserAuthenticationFilter FilterType = "UserAuthenticationFilter"
+	UserDataSenderFilter     FilterType = "UserDataSenderFilter"
 )
 
 type CacheAdapterType string
@@ -230,16 +255,28 @@ type CacheAdapter struct {
 	EvictScheduleTimeHours int `mapstructure:"evict-schedule-time-hours"`
 }
 
+type UserDataSerializerType string
+
+const (
+	JwtUserDataSerializer UserDataSerializerType = "JwtUserDataSerializer"
+)
+
+type UserDataSerializer struct {
+	Type   UserDataSerializerType
+	Secret string
+}
+
 type Filter struct {
 	Type                   FilterType
 	Name                   string
 	Template               string
-	CacheAdapterIdentifier string `mapstructure:"cache-adapter-identifier"`
-	CookieDomain           string `mapstructure:"cookie-domain"`
-	CookiePath             string `mapstructure:"cookie-path"`
-	CookieName             string `mapstructure:"cookie-name"`
-	CookieTTLHours         int    `mapstructure:"cookie-ttl-hours"`
-	CookieRenewBeforeHours int    `mapstructure:"cookie-renew-before-hours"`
+	CacheAdapterIdentifier string             `mapstructure:"cache-adapter-identifier"`
+	CookieDomain           string             `mapstructure:"cookie-domain"`
+	CookiePath             string             `mapstructure:"cookie-path"`
+	CookieName             string             `mapstructure:"cookie-name"`
+	CookieTTLHours         int                `mapstructure:"cookie-ttl-hours"`
+	CookieRenewBeforeHours int                `mapstructure:"cookie-renew-before-hours"`
+	UserDataTypeSerializer UserDataSerializer `mapstructure:"user-data-serializer"`
 }
 
 type Router struct {
