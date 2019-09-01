@@ -1,7 +1,7 @@
 package serializers
 
 import (
-	"balancer/auth"
+	"balancer/common"
 	"github.com/dgrijalva/jwt-go"
 )
 
@@ -15,7 +15,7 @@ func NewJwtUserDataSerializer(hmacSampleSecret string) *jwtUserDataSerializer {
 	}
 }
 
-func (serializer *jwtUserDataSerializer) Serialize(userData *auth.UserData) (string, error) {
+func (serializer *jwtUserDataSerializer) Serialize(userData *common.UserData) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"identifier": userData.Identifier,
 		"username":   userData.Username,

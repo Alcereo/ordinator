@@ -1,7 +1,7 @@
 package filters
 
 import (
-	"balancer/balancer"
+	"balancer/common"
 	"bytes"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -9,12 +9,12 @@ import (
 )
 
 type LogFilterHandler struct {
-	next     *balancer.RequestHandler
+	next     *common.RequestHandler
 	template *templ.Template
 	Name     string
 }
 
-func (filter *LogFilterHandler) SetNext(nextHandler balancer.RequestHandler) {
+func (filter *LogFilterHandler) SetNext(nextHandler common.RequestHandler) {
 	filter.next = &nextHandler
 }
 
@@ -43,7 +43,7 @@ func (filter *LogFilterHandler) Handle(writer http.ResponseWriter, request *http
 
 // Factory
 
-func CreateLogFilter(name string, template string, next balancer.RequestHandler) *LogFilterHandler {
+func CreateLogFilter(name string, template string, next common.RequestHandler) *LogFilterHandler {
 	parse, err := templ.New(name).Parse(template)
 	if err != nil {
 		log.Warnf("Log filter templ error: %v. Skip filter", err)

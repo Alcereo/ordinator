@@ -1,8 +1,7 @@
 package cache
 
 import (
-	"balancer/auth"
-	"balancer/filters"
+	"balancer/common"
 	"github.com/patrickmn/go-cache"
 	"github.com/satori/go.uuid"
 	"time"
@@ -22,42 +21,42 @@ func NewGoCacheSessionCacheProvider(expirationTimeHours int, evictScheduleTimeHo
 	}
 }
 
-func (adapter *goCacheSessionCacheAdapter) PutSession(session *filters.Session) error {
+func (adapter *goCacheSessionCacheAdapter) PutSession(session *common.Session) error {
 	return adapter.cookieCache.Add(string(session.Cookie), session, cache.DefaultExpiration)
 }
 
-func (adapter *goCacheSessionCacheAdapter) GetSession(cookie filters.SessionCookie) (*filters.Session, bool) {
+func (adapter *goCacheSessionCacheAdapter) GetSession(cookie common.SessionCookie) (*common.Session, bool) {
 	session, found := adapter.cookieCache.Get(string(cookie))
 	if found {
-		return session.(*filters.Session), true
+		return session.(*common.Session), true
 	} else {
 		return nil, false
 	}
 }
 
-func (adapter *goCacheSessionCacheAdapter) RemoveSession(session *filters.Session) {
+func (adapter *goCacheSessionCacheAdapter) RemoveSession(session *common.Session) {
 	adapter.cookieCache.Delete(string(session.Cookie))
 }
 
-func (*goCacheSessionCacheAdapter) CreateNewIdentifier() filters.SessionId {
-	return filters.SessionId(uuid.NewV1().String())
+func (*goCacheSessionCacheAdapter) CreateNewIdentifier() common.SessionId {
+	return common.SessionId(uuid.NewV1().String())
 }
 
-func (*goCacheSessionCacheAdapter) CreateNewCookie() filters.SessionCookie {
-	return filters.SessionCookie(uuid.NewV1().String())
+func (*goCacheSessionCacheAdapter) CreateNewCookie() common.SessionCookie {
+	return common.SessionCookie(uuid.NewV1().String())
 }
 
 // UserAuthenticationPort implementation
 
-func (adapter *goCacheSessionCacheAdapter) FindUserData(session *filters.Session) (*auth.UserData, bool) {
+func (adapter *goCacheSessionCacheAdapter) FindUserData(session *common.Session) (*common.UserData, bool) {
 	userData, found := adapter.cookieCache.Get(string(session.Id))
 	if found {
-		return userData.(*auth.UserData), true
+		return userData.(*common.UserData), true
 	} else {
 		return nil, false
 	}
 }
 
-func (adapter *goCacheSessionCacheAdapter) PutUserData(session *filters.Session, userData *auth.UserData) error {
+func (adapter *goCacheSessionCacheAdapter) PutUserData(session *common.Session, userData *common.UserData) error {
 	return adapter.cookieCache.Add(string(session.Id), userData, cache.DefaultExpiration)
 }

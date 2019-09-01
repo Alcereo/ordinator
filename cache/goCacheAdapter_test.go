@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"balancer/filters"
+	"balancer/common"
 	"testing"
 	"time"
 )
@@ -9,7 +9,7 @@ import (
 func TestPutNew(t *testing.T) {
 	adapter := NewGoCacheSessionCacheProvider(1, 1)
 
-	session := &filters.Session{
+	session := &common.Session{
 		Id:      "i1",
 		Cookie:  "c1",
 		Expires: time.Now(),
@@ -34,7 +34,7 @@ func TestPutNew(t *testing.T) {
 func TestPutNotUnique(t *testing.T) {
 	adapter := NewGoCacheSessionCacheProvider(1, 1)
 
-	sessionFirst := &filters.Session{
+	sessionFirst := &common.Session{
 		Id:      "i1",
 		Cookie:  "c1",
 		Expires: time.Now(),
@@ -44,7 +44,7 @@ func TestPutNotUnique(t *testing.T) {
 		t.Errorf("Saving session error: %v", err)
 	}
 
-	sessionSecond := &filters.Session{
+	sessionSecond := &common.Session{
 		Id:      "i2",
 		Cookie:  "c1",
 		Expires: time.Now(),
@@ -58,7 +58,7 @@ func TestPutNotUnique(t *testing.T) {
 func TestGetNotFound(t *testing.T) {
 	adapter := NewGoCacheSessionCacheProvider(1, 1)
 
-	sessionFirst := &filters.Session{
+	sessionFirst := &common.Session{
 		Id:      "i1",
 		Cookie:  "c1",
 		Expires: time.Now(),
@@ -80,7 +80,7 @@ func TestGetNotFound(t *testing.T) {
 func TestRemoveSession(t *testing.T) {
 	adapter := NewGoCacheSessionCacheProvider(1, 1)
 
-	session := &filters.Session{
+	session := &common.Session{
 		Id:      "i1",
 		Cookie:  "c1",
 		Expires: time.Now(),

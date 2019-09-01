@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"balancer/filters"
+	"balancer/common"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -39,14 +39,14 @@ func NewGoogleOAuth2Provider(
 }
 
 func (router *googleOAuth2Provider) Handle(writer http.ResponseWriter, request *http.Request) {
-	sessionNillable := request.Context().Value(filters.SessionContextKey)
+	sessionNillable := request.Context().Value(common.SessionContextKey)
 	if sessionNillable == nil {
 		logrus.Errorf("Session not found in the request context! Session filter should be executed before authorization")
 		writer.WriteHeader(501)
 		return
 	}
 
-	session := sessionNillable.(*filters.Session)
+	session := sessionNillable.(*common.Session)
 	_, found := router.cacheProvider.FindUserData(session)
 	if found {
 		logrus.Debugf("User data for session already exist. Skip authentication.")
@@ -71,7 +71,7 @@ func (router *googleOAuth2Provider) Handle(writer http.ResponseWriter, request *
 	http.Redirect(writer, request, router.successLoginUrl, 302)
 }
 
-func (router *googleOAuth2Provider) getUserData(request *http.Request) (*UserData, error) {
+func (router *googleOAuth2Provider) getUserData(request *http.Request) (*common.UserData, error) {
 
 	// Get code from request
 	accessCode, err := getAccessCode(request)
@@ -90,7 +90,7 @@ func (router *googleOAuth2Provider) getUserData(request *http.Request) (*UserDat
 	}
 
 	logrus.Debugf("Authentication successful. %+v", googleUserInfo)
-	return &UserData{
+	return &common.UserData{
 		Identifier: googleUserInfo.Identifier,
 		Username:   googleUserInfo.Username,
 		Email:      googleUserInfo.Email,

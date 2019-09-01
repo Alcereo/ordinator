@@ -1,7 +1,7 @@
 package serializers
 
 import (
-	"balancer/auth"
+	"balancer/common"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -11,7 +11,7 @@ const expectedToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InNvbWVA
 func TestSerializeToken(t *testing.T) {
 	serializer := NewJwtUserDataSerializer("smallSecret")
 
-	result, err := serializer.Serialize(&auth.UserData{
+	result, err := serializer.Serialize(&common.UserData{
 		Username:   "some-name",
 		Picture:    "picture-url",
 		Locale:     "ru",

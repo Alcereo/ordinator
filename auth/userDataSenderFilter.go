@@ -1,14 +1,13 @@
 package auth
 
 import (
-	"balancer/balancer"
-	"balancer/filters"
+	"balancer/common"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
 type userDataSenderFilter struct {
-	next               *balancer.RequestHandler
+	next               *common.RequestHandler
 	cacheProvider      UserAuthCachePort
 	Name               string
 	userDataSerializer UserDataSerializer
@@ -27,7 +26,7 @@ func NewUserDataSenderFilter(
 	}
 }
 
-func (filter *userDataSenderFilter) SetNext(handler balancer.RequestHandler) {
+func (filter *userDataSenderFilter) SetNext(handler common.RequestHandler) {
 	filter.next = &handler
 }
 
@@ -41,13 +40,13 @@ func (filter *userDataSenderFilter) Handle(writer http.ResponseWriter, request *
 }
 
 func (filter *userDataSenderFilter) updateRequest(request *http.Request) *http.Request {
-	sessionNillable := request.Context().Value(filters.SessionContextKey)
+	sessionNillable := request.Context().Value(common.SessionContextKey)
 	if sessionNillable == nil {
 		log.Warnf("Session not found in the request context. Skip User data sending.")
 		return request
 	}
 
-	session := sessionNillable.(*filters.Session)
+	session := sessionNillable.(*common.Session)
 	userData, found := filter.cacheProvider.FindUserData(session)
 
 	if !found {
@@ -66,5 +65,5 @@ func (filter *userDataSenderFilter) updateRequest(request *http.Request) *http.R
 }
 
 type UserDataSerializer interface {
-	Serialize(*UserData) (string, error)
+	Serialize(*common.UserData) (string, error)
 }

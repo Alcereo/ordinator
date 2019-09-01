@@ -1,6 +1,7 @@
 package filters
 
 import (
+	"balancer/common"
 	"github.com/spf13/cast"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +17,7 @@ func TestNewSessionCreate(t *testing.T) {
 	cacheProvider := CreateStubCacheProvider()
 
 	cookieName := "test-session"
-	handler := CreateSessionFilter("Filter name", cookieName, cacheProvider, 3, 0)
+	handler := CreateSessionFilter("Filter name", cookieName, cacheProvider, 3, 0, "/", "localhost")
 	handler.SetNext(&StubHandler{})
 
 	// When
@@ -26,11 +27,11 @@ func TestNewSessionCreate(t *testing.T) {
 	result := w.Result()
 	assertHasSetCookie(cookieName, "c1", time.Now().Add(time.Hour*4), result, t)
 
-	value := nextChainRequest.Context().Value(SessionContextKey)
+	value := nextChainRequest.Context().Value(common.SessionContextKey)
 	if value == nil {
 		t.Fatalf("Session must be set in context")
 	}
-	session := value.(*Session)
+	session := value.(*common.Session)
 	assertSession(session, "i1", "c1", time.Now().Add(time.Hour*3), t)
 }
 
@@ -38,14 +39,14 @@ func TestExistingSessionGet(t *testing.T) {
 	// Given
 	cacheProvider := CreateStubCacheProvider()
 	cookie := cacheProvider.CreateNewCookie()
-	_ = cacheProvider.PutSession(&Session{
+	_ = cacheProvider.PutSession(&common.Session{
 		Id:      cacheProvider.CreateNewIdentifier(),
 		Cookie:  cookie,
 		Expires: time.Now().Add(time.Hour * 12),
 	})
 
 	cookieName := "test-session"
-	handler := CreateSessionFilter("Filter name", cookieName, cacheProvider, 3, 0)
+	handler := CreateSessionFilter("Filter name", cookieName, cacheProvider, 3, 0, "/", "localhost")
 	handler.SetNext(&StubHandler{})
 
 	req := httptest.NewRequest("GET", "/foo", nil)
@@ -59,11 +60,11 @@ func TestExistingSessionGet(t *testing.T) {
 	handler.Handle(w, req)
 
 	// Then
-	value := nextChainRequest.Context().Value(SessionContextKey)
+	value := nextChainRequest.Context().Value(common.SessionContextKey)
 	if value == nil {
 		t.Fatalf("Session must be set in context")
 	}
-	session := value.(*Session)
+	session := value.(*common.Session)
 	assertSession(session, "i1", "c1", time.Now().Add(time.Hour*12), t)
 }
 
@@ -71,14 +72,14 @@ func TestRenewCookie(t *testing.T) {
 	// Given
 	cacheProvider := CreateStubCacheProvider()
 	cookie := cacheProvider.CreateNewCookie()
-	_ = cacheProvider.PutSession(&Session{
+	_ = cacheProvider.PutSession(&common.Session{
 		Id:      cacheProvider.CreateNewIdentifier(),
 		Cookie:  cookie,
 		Expires: time.Now().Add(time.Hour * 2),
 	})
 
 	cookieName := "test-session"
-	handler := CreateSessionFilter("Filter name", cookieName, cacheProvider, 5, 3)
+	handler := CreateSessionFilter("Filter name", cookieName, cacheProvider, 5, 3, "/", "localhost")
 	handler.SetNext(&StubHandler{})
 
 	req := httptest.NewRequest("GET", "/foo", nil)
@@ -96,17 +97,17 @@ func TestRenewCookie(t *testing.T) {
 	result := w.Result()
 	assertHasSetCookie(cookieName, "c2", time.Now().Add(time.Hour*5), result, t)
 
-	value := nextChainRequest.Context().Value(SessionContextKey)
+	value := nextChainRequest.Context().Value(common.SessionContextKey)
 	if value == nil {
 		t.Fatalf("Session must be set in context")
 	}
-	session := value.(*Session)
+	session := value.(*common.Session)
 	assertSession(session, "i1", "c2", time.Now().Add(time.Hour*5), t)
 }
 
 // Internal
 
-func assertSession(session *Session, id string, cookie string, expiresBefore time.Time, t *testing.T) {
+func assertSession(session *common.Session, id string, cookie string, expiresBefore time.Time, t *testing.T) {
 	if string(session.Id) != id {
 		t.Fatalf("Expecting Session with id: %s actual:%s", id, session.Id)
 	}
@@ -138,28 +139,28 @@ func assertHasSetCookie(name string, value string, expiresBefore time.Time, resp
 type StubCacheProvider struct {
 	idIncrementer     int
 	cookieIncrementer int
-	sessionMap        map[SessionCookie]*Session
+	sessionMap        map[common.SessionCookie]*common.Session
 }
 
-func (provider *StubCacheProvider) RemoveSession(session *Session) {
+func (provider *StubCacheProvider) RemoveSession(session *common.Session) {
 	provider.sessionMap[session.Cookie] = nil
 }
 
-func (provider *StubCacheProvider) CreateNewCookie() SessionCookie {
+func (provider *StubCacheProvider) CreateNewCookie() common.SessionCookie {
 	provider.cookieIncrementer += 1
-	return SessionCookie("c" + cast.ToString(provider.cookieIncrementer))
+	return common.SessionCookie("c" + cast.ToString(provider.cookieIncrementer))
 }
 
-func (provider *StubCacheProvider) GetSession(cookie SessionCookie) (*Session, bool) {
+func (provider *StubCacheProvider) GetSession(cookie common.SessionCookie) (*common.Session, bool) {
 	return provider.sessionMap[cookie], true // TODO Handle not found case
 }
 
-func (provider *StubCacheProvider) CreateNewIdentifier() SessionId {
+func (provider *StubCacheProvider) CreateNewIdentifier() common.SessionId {
 	provider.idIncrementer += 1
-	return SessionId("i" + cast.ToString(provider.idIncrementer))
+	return common.SessionId("i" + cast.ToString(provider.idIncrementer))
 }
 
-func (provider *StubCacheProvider) PutSession(session *Session) error {
+func (provider *StubCacheProvider) PutSession(session *common.Session) error {
 	provider.sessionMap[session.Cookie] = session
 	return nil // TODO Handle error case
 }
@@ -168,7 +169,7 @@ func CreateStubCacheProvider() *StubCacheProvider {
 	return &StubCacheProvider{
 		idIncrementer:     0,
 		cookieIncrementer: 0,
-		sessionMap:        make(map[SessionCookie]*Session),
+		sessionMap:        make(map[common.SessionCookie]*common.Session),
 	}
 }
 

@@ -21,7 +21,7 @@ func TestRouting(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	requestUrl, _ := new(url.URL).Parse(ts.URL + "/some-address")
-	handler := ReversiveProxyHandler{
+	handler := ReverseProxyHandler{
 		TargetAddress: *requestUrl,
 	}
 

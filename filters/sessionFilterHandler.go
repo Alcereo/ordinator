@@ -1,35 +1,24 @@
 package filters
 
 import (
-	"balancer/balancer"
+	"balancer/common"
 	"context"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 )
 
-const SessionContextKey string = "SessionContextKey"
-
-type Session struct {
-	Id      SessionId
-	Cookie  SessionCookie
-	Expires time.Time
-}
-
-type SessionId string
-type SessionCookie string
-
 type SessionCachePort interface {
-	PutSession(session *Session) error
-	GetSession(cookie SessionCookie) (*Session, bool)
-	RemoveSession(session *Session)
-	CreateNewIdentifier() SessionId
-	CreateNewCookie() SessionCookie
+	PutSession(session *common.Session) error
+	GetSession(cookie common.SessionCookie) (*common.Session, bool)
+	RemoveSession(session *common.Session)
+	CreateNewIdentifier() common.SessionId
+	CreateNewCookie() common.SessionCookie
 }
 
 type SessionFilterHandler struct {
 	Name                   string
-	next                   *balancer.RequestHandler
+	next                   *common.RequestHandler
 	SessionCookieName      string
 	SessionCache           SessionCachePort
 	CookieTTLHours         int
@@ -59,7 +48,7 @@ func CreateSessionFilter(
 	}
 }
 
-func (filter *SessionFilterHandler) SetNext(nextHandler balancer.RequestHandler) {
+func (filter *SessionFilterHandler) SetNext(nextHandler common.RequestHandler) {
 	filter.next = &nextHandler
 }
 
@@ -68,7 +57,7 @@ func (filter *SessionFilterHandler) Handle(writer http.ResponseWriter, request *
 	session := filter.getOrCreateSession(writer, request)
 	// Add to context
 	log.Debugf("Retrieved session: %+v", session)
-	newContext := context.WithValue(request.Context(), SessionContextKey, session)
+	newContext := context.WithValue(request.Context(), common.SessionContextKey, session)
 	newRequest := request.WithContext(newContext)
 
 	if filter.next != nil {
@@ -78,11 +67,11 @@ func (filter *SessionFilterHandler) Handle(writer http.ResponseWriter, request *
 	}
 }
 
-func (filter *SessionFilterHandler) getOrCreateSession(writer http.ResponseWriter, request *http.Request) *Session {
+func (filter *SessionFilterHandler) getOrCreateSession(writer http.ResponseWriter, request *http.Request) *common.Session {
 	cookie, err := request.Cookie(filter.SessionCookieName)
 	if err == nil && cookie != nil {
 		log.Tracef("Found cookie in the request context: %+v", cookie.Value)
-		session, found := filter.SessionCache.GetSession(SessionCookie(cookie.Value))
+		session, found := filter.SessionCache.GetSession(common.SessionCookie(cookie.Value))
 		if found {
 			log.Tracef("Session found in cache. %+v", session)
 			if !session.Expires.Before(time.Now().Add(time.Hour * time.Duration(filter.RenewCookieBeforeHours))) {
@@ -104,8 +93,8 @@ func (filter *SessionFilterHandler) getOrCreateSession(writer http.ResponseWrite
 	}
 }
 
-func (filter *SessionFilterHandler) createNewSession(writer http.ResponseWriter, oldSession *Session) *Session {
-	var id SessionId
+func (filter *SessionFilterHandler) createNewSession(writer http.ResponseWriter, oldSession *common.Session) *common.Session {
+	var id common.SessionId
 	if oldSession == nil {
 		id = filter.SessionCache.CreateNewIdentifier()
 	} else {
@@ -113,7 +102,7 @@ func (filter *SessionFilterHandler) createNewSession(writer http.ResponseWriter,
 	}
 
 	expires := time.Now().Add(time.Hour * time.Duration(filter.CookieTTLHours))
-	session := &Session{
+	session := &common.Session{
 		Cookie:  filter.SessionCache.CreateNewCookie(),
 		Id:      id,
 		Expires: expires,

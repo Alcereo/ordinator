@@ -4,6 +4,7 @@ import (
 	"balancer/auth"
 	"balancer/balancer"
 	"balancer/cache"
+	"balancer/common"
 	"balancer/filters"
 	"balancer/serializers"
 	"fmt"
@@ -69,7 +70,7 @@ func setupRouters(routers []Router, googleSecret GoogleSecret, context *Context)
 			)
 
 			targetUrl, _ := new(url.URL).Parse(router.TargetUrl)
-			handler := balancer.ReversiveProxyHandler{
+			handler := balancer.ReverseProxyHandler{
 				TargetAddress: *targetUrl,
 			}
 
@@ -145,7 +146,7 @@ func configInit() {
 	}
 }
 
-func BuildFilterHandlers(filters []Filter, mainHandler balancer.RequestHandler, context *Context) (rootHandler balancer.RequestHandler) {
+func BuildFilterHandlers(filters []Filter, mainHandler common.RequestHandler, context *Context) (rootHandler common.RequestHandler) {
 	if filters == nil {
 		return mainHandler
 	}
@@ -168,7 +169,7 @@ func BuildFilterHandlers(filters []Filter, mainHandler balancer.RequestHandler, 
 	return currentHandler
 }
 
-func buildFilterHandler(filter Filter, context *Context) balancer.RequestChainedHandler {
+func buildFilterHandler(filter Filter, context *Context) common.RequestChainedHandler {
 	switch filter.Type {
 	case LogFilter:
 		log.Debugf("Adding Log filter. Name: %s", filter.Name)
