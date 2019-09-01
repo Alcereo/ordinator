@@ -75,6 +75,7 @@ routers:
       - type: UserDataSenderFilter
         name: Filter wich sends user data to server
         cache-adapter-identifier: PrimaryCacheAdapter
+        user-data-header: X-USER-DATA
         user-data-serializer:
           type: JwtUserDataSerializer
           secret: some-jwt-secret-to-use-in-the-server

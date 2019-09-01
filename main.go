@@ -210,6 +210,7 @@ func buildFilterHandler(filter Filter, context *Context) common.RequestChainedHa
 			cacheAdapter,
 			filter.Name,
 			serializer,
+			filter.UserDataHeader,
 		)
 	default:
 		panic(fmt.Errorf("Undefined filter type: %v.\n", filter.Type))
@@ -278,6 +279,7 @@ type Filter struct {
 	CookieTTLHours         int                `mapstructure:"cookie-ttl-hours"`
 	CookieRenewBeforeHours int                `mapstructure:"cookie-renew-before-hours"`
 	UserDataTypeSerializer UserDataSerializer `mapstructure:"user-data-serializer"`
+	UserDataHeader         string             `mapstructure:"user-data-header"`
 }
 
 type Router struct {

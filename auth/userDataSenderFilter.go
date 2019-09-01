@@ -11,18 +11,21 @@ type userDataSenderFilter struct {
 	cacheProvider      UserAuthCachePort
 	Name               string
 	userDataSerializer UserDataSerializer
+	userDataHeader     string
 }
 
 func NewUserDataSenderFilter(
 	cacheProvider UserAuthCachePort,
 	name string,
 	userDataSerializer UserDataSerializer,
+	userDataHeader string,
 ) *userDataSenderFilter {
 	return &userDataSenderFilter{
 		next:               nil,
 		cacheProvider:      cacheProvider,
 		Name:               name,
 		userDataSerializer: userDataSerializer,
+		userDataHeader:     userDataHeader,
 	}
 }
 
@@ -60,7 +63,7 @@ func (filter *userDataSenderFilter) updateRequest(request *http.Request) *http.R
 		return request
 	}
 
-	request.Header.Add("X-USER-DATA", jwtToken)
+	request.Header.Add(filter.userDataHeader, jwtToken)
 	return request
 }
 
