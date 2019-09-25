@@ -90,6 +90,8 @@ func setupRouters(routers []Router, googleSecret GoogleSecret, context *Context)
 				router.SuccessLoginUrl,
 				googleSecret.ClientId,
 				googleSecret.ClientSecret,
+				router.AccessTokenRequestUrl,
+				router.UserInfoRequestUrl,
 			)
 
 			rootFilterHandler := BuildFilterHandlers(router.Filters, handler, context)
@@ -289,6 +291,8 @@ type Router struct {
 	Filters                []Filter
 	CacheAdapterIdentifier string `mapstructure:"cache-adapter-identifier"`
 	SuccessLoginUrl        string `mapstructure:"success-login-url"`
+	AccessTokenRequestUrl  string `mapstructure:"access-toke-request-url"`
+	UserInfoRequestUrl     string `mapstructure:"user-info-request-url"`
 }
 
 type LogLevel string

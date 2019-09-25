@@ -27,6 +27,8 @@ func NewGoogleOAuth2Provider(
 	successLoginUrl string,
 	googleClientId string,
 	googleSecretId string,
+	accessTokenRequestUrl string,
+	userInfoRequestUrl string,
 ) *googleOAuth2Provider {
 	return &googleOAuth2Provider{
 		cacheProvider:         cacheProvider,
@@ -36,8 +38,8 @@ func NewGoogleOAuth2Provider(
 		domainUrl:             "http://localhost:8080",
 		grantType:             "authorization_code",
 		authenticationUrl:     "/authentication/google",
-		accessTokenRequestUrl: "https://www.googleapis.com/oauth2/v4/token",
-		userInfoRequestUrl:    "https://www.googleapis.com/oauth2/v3/userinfo",
+		accessTokenRequestUrl: accessTokenRequestUrl,
+		userInfoRequestUrl:    userInfoRequestUrl,
 	}
 }
 

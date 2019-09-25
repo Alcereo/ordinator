@@ -11,6 +11,8 @@ routers:
     pattern: /authentication/google
     success-login-url: /api/v2/
     cache-adapter-identifier: PrimaryCacheAdapter
+    access-toke-request-url: https://www.googleapis.com/oauth2/v4/token
+    user-info-request-url: https://www.googleapis.com/oauth2/v3/userinfo
     filters:
       - type: SessionFilter
         name: Autentication session filter
