@@ -1,7 +1,7 @@
 package serializers
 
 import (
-	"balancer/common"
+	"github.com/Alcereo/ordinator/pkg/common"
 	"github.com/dgrijalva/jwt-go"
 )
 

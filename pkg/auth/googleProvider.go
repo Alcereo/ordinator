@@ -1,10 +1,10 @@
 package auth
 
 import (
-	"balancer/common"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/Alcereo/ordinator/pkg/common"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"

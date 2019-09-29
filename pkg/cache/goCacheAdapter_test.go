@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"balancer/common"
+	"github.com/Alcereo/ordinator/pkg/common"
 	"testing"
 	"time"
 )

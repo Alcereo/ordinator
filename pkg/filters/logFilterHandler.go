@@ -1,8 +1,8 @@
 package filters
 
 import (
-	"balancer/common"
 	"bytes"
+	"github.com/Alcereo/ordinator/pkg/common"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	templ "text/template"

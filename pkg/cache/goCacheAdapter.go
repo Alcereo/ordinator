@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"balancer/common"
+	"github.com/Alcereo/ordinator/pkg/common"
 	"github.com/patrickmn/go-cache"
 	"github.com/satori/go.uuid"
 	"time"

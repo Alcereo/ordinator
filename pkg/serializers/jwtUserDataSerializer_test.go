@@ -1,7 +1,7 @@
 package serializers
 
 import (
-	"balancer/common"
+	"github.com/Alcereo/ordinator/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

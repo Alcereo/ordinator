@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"balancer/common"
+	"github.com/Alcereo/ordinator/pkg/common"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 )
