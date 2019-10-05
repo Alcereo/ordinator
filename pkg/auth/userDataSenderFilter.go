@@ -33,10 +33,11 @@ func (filter *userDataSenderFilter) SetNext(handler common.RequestHandler) {
 	filter.next = &handler
 }
 
-func (filter *userDataSenderFilter) Handle(writer http.ResponseWriter, request *http.Request) {
+func (filter *userDataSenderFilter) Handle(log *log.Entry, writer http.ResponseWriter, request *http.Request) {
+	log = log.WithField("filterName", filter.Name)
 	enchantedRequest := filter.updateRequest(request)
 	if filter.next != nil {
-		(*filter.next).Handle(writer, enchantedRequest)
+		(*filter.next).Handle(log, writer, enchantedRequest)
 	} else {
 		log.Debugf("User authentication filter: %v doesn't have next handler", filter.Name)
 	}

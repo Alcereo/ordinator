@@ -52,16 +52,17 @@ func (filter *SessionFilterHandler) SetNext(nextHandler common.RequestHandler) {
 	filter.next = &nextHandler
 }
 
-func (filter *SessionFilterHandler) Handle(writer http.ResponseWriter, request *http.Request) {
-
+func (filter *SessionFilterHandler) Handle(log *log.Entry, writer http.ResponseWriter, request *http.Request) {
+	log = log.WithField("filterName", filter.Name)
 	session := filter.getOrCreateSession(writer, request)
 	// Add to context
-	log.Debugf("Retrieved session: %+v", session)
+	log = log.WithField("sessionId", session.Id)
+	log.Debugf("Session retrieved")
 	newContext := context.WithValue(request.Context(), common.SessionContextKey, session)
 	newRequest := request.WithContext(newContext)
 
 	if filter.next != nil {
-		(*filter.next).Handle(writer, newRequest)
+		(*filter.next).Handle(log, writer, newRequest)
 	} else {
 		log.Debugf("Log filter error: %+v. Next handler is empty", filter.Name)
 	}

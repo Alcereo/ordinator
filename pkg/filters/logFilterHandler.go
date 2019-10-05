@@ -18,7 +18,8 @@ func (filter *LogFilterHandler) SetNext(nextHandler common.RequestHandler) {
 	filter.next = &nextHandler
 }
 
-func (filter *LogFilterHandler) Handle(writer http.ResponseWriter, request *http.Request) {
+func (filter *LogFilterHandler) Handle(log *log.Entry, writer http.ResponseWriter, request *http.Request) {
+	log = log.WithField("filterName", filter.Name)
 	data := struct {
 		Request *http.Request
 		Filter  *LogFilterHandler
@@ -34,7 +35,7 @@ func (filter *LogFilterHandler) Handle(writer http.ResponseWriter, request *http
 
 	log.Info(tpl.String())
 	if filter.next != nil {
-		(*filter.next).Handle(writer, request)
+		(*filter.next).Handle(log, writer, request)
 	} else {
 		log.Debugf("Log filter error: %v. Next handler is empty", filter.Name)
 	}

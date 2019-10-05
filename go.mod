@@ -13,5 +13,6 @@ require (
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/viper v1.4.0
 	github.com/stretchr/testify v1.2.2
+	golang.org/x/net v0.0.0-20190522155817-f3200d17e092
 	gopkg.in/yaml.v2 v2.2.2
 )

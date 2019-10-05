@@ -8,6 +8,7 @@ import (
 	"github.com/Alcereo/ordinator/pkg/filters"
 	"github.com/Alcereo/ordinator/pkg/proxy"
 	"github.com/Alcereo/ordinator/pkg/serializers"
+	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
@@ -60,7 +61,13 @@ func (ctx *context) SetupRouters(routers []Router, secret GoogleSecret) {
 			}
 
 			rootFilterHandler := ctx.BuildFilterHandlers(router.Filters, &handler)
-			ctx.serverMultiplexer.HandleFunc(router.Pattern, rootFilterHandler.Handle)
+			ctx.serverMultiplexer.HandleFunc(router.Pattern, func(writer http.ResponseWriter, request *http.Request) {
+				rootFilterHandler.Handle(
+					log.WithField("requestId", uuid.NewV4()),
+					writer,
+					request,
+				)
+			})
 		case GoogleOauth2Authorization:
 			log.Debugf(
 				"Adding Google Oauth2 authorization endpoint. Pattern: %s;",
@@ -80,7 +87,13 @@ func (ctx *context) SetupRouters(routers []Router, secret GoogleSecret) {
 			)
 
 			rootFilterHandler := ctx.BuildFilterHandlers(router.Filters, handler)
-			ctx.serverMultiplexer.HandleFunc(router.Pattern, rootFilterHandler.Handle)
+			ctx.serverMultiplexer.HandleFunc(router.Pattern, func(writer http.ResponseWriter, request *http.Request) {
+				rootFilterHandler.Handle(
+					log.WithField("requestId", uuid.NewV4()),
+					writer,
+					request,
+				)
+			})
 		default:
 			panic(fmt.Errorf("Undefined router type: %v.\n", router.Type))
 		}
@@ -139,6 +152,7 @@ func (ctx *context) BuildFilterHandler(filter Filter) common.RequestChainedHandl
 		return auth.NewUserAuthenticationFilter(
 			cacheAdapter,
 			filter.Name,
+			filter.UserDataRequired,
 		)
 	case UserDataSenderFilter:
 		log.Debugf("Adding user data sending filter. Name: %s", filter.Name)

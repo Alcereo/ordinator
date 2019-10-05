@@ -43,12 +43,12 @@ func NewGoogleOAuth2Provider(
 	}
 }
 
-func (router *googleOAuth2Provider) Handle(writer http.ResponseWriter, request *http.Request) {
+func (router *googleOAuth2Provider) Handle(log *logrus.Entry, writer http.ResponseWriter, request *http.Request) {
 	const stage = "Performing google authorisation error. Reason: %v"
 
 	sessionNillable := request.Context().Value(common.SessionContextKey)
 	if sessionNillable == nil {
-		logrus.Errorf(stage, "Session not found in the request context.")
+		log.Errorf(stage, "Session not found in the request context.")
 		writer.WriteHeader(501)
 		return
 	}
@@ -56,36 +56,36 @@ func (router *googleOAuth2Provider) Handle(writer http.ResponseWriter, request *
 	session := sessionNillable.(*common.Session)
 	_, found := router.cacheProvider.FindUserData(session)
 	if found {
-		logrus.Debugf("User data for session already exist. Skip authentication.")
+		log.Debugf("User data for session already exist. Skip authentication.")
 		http.Redirect(writer, request, router.successLoginUrl, 302)
 		return
 	}
 
 	accessCode, err := getAccessCode(request)
 	if err != nil {
-		logrus.Errorf(stage, err)
+		log.Errorf(stage, err)
 		writer.WriteHeader(403)
 		return
 	}
 
-	userData, err := router.getUserData(accessCode)
+	userData, err := router.getUserData(log, accessCode)
 	if err != nil {
-		logrus.Errorf(stage, err)
+		log.Errorf(stage, err)
 		writer.WriteHeader(403)
 		return
 	}
 
 	if err := router.cacheProvider.PutUserData(session, userData); err != nil {
-		logrus.Errorf(stage, err)
+		log.Errorf(stage, err)
 		writer.WriteHeader(500)
 		return
 	}
 
-	logrus.Debugf("User data successful retrieved and stored to cache. %v", userData)
+	log.Debugf("User data successful retrieved and stored to cache. %v", userData)
 	http.Redirect(writer, request, router.successLoginUrl, 302)
 }
 
-func (router *googleOAuth2Provider) getUserData(accessCode *string) (*common.UserData, error) {
+func (router *googleOAuth2Provider) getUserData(log *logrus.Entry, accessCode *string) (*common.UserData, error) {
 	const stage = "Getting user data error."
 
 	token, err := router.retrieveAccessToken(*accessCode)
@@ -98,7 +98,7 @@ func (router *googleOAuth2Provider) getUserData(accessCode *string) (*common.Use
 		return nil, newErr(stage, err)
 	}
 
-	logrus.Debugf("Authentication successful. %+v", googleUserInfo)
+	log.Debugf("Authentication successful. %+v", googleUserInfo)
 	return &common.UserData{
 		Identifier: googleUserInfo.Identifier,
 		Username:   googleUserInfo.Username,

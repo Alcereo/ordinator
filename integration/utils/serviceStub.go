@@ -14,14 +14,22 @@ func CreateServiceStub(mocks []RequestMock) *httptest.Server {
 	mux := http.NewServeMux()
 
 	for _, mReg := range mocks {
-		mux.HandleFunc(mReg.Request.Url, func(writer http.ResponseWriter, request *http.Request) {
-			if request.Method != mReg.Request.Method {
+		pattern := mReg.Request.Url
+		expectedMethod := mReg.Request.Method
+		expectedHeaders := mReg.Request.Headers
+		expectedBodyChecks := mReg.Request.Body
+		responseStatus := mReg.Response.Status
+		responseHeaders := mReg.Response.Headers
+		responseBody := mReg.Response.Body
+
+		mux.HandleFunc(pattern, func(writer http.ResponseWriter, request *http.Request) {
+			if request.Method != expectedMethod {
 				writer.WriteHeader(404)
 				_, _ = fmt.Fprint(writer, "Request Method 'POST' expected. Actual: '"+request.Method+"'.")
 				return
 			}
 
-			for _, check := range mReg.Request.Headers {
+			for _, check := range expectedHeaders {
 				header := request.Header.Get(check.Name)
 				matched, err := regexp.MatchString(check.Regexp, header)
 				if err != nil {
@@ -43,7 +51,7 @@ func CreateServiceStub(mocks []RequestMock) *httptest.Server {
 				return
 			}
 
-			for _, check := range mReg.Request.Body {
+			for _, check := range expectedBodyChecks {
 				err := check.checkBody(bytes, request)
 				if err != nil {
 					writer.WriteHeader(400)
@@ -52,11 +60,11 @@ func CreateServiceStub(mocks []RequestMock) *httptest.Server {
 				}
 			}
 
-			writer.WriteHeader(mReg.Response.Status)
-			for header, value := range mReg.Response.Headers {
+			writer.WriteHeader(responseStatus)
+			for header, value := range responseHeaders {
 				writer.Header().Add(header, value)
 			}
-			bodyBytes, err := mReg.Response.Body.getString()
+			bodyBytes, err := responseBody.getString()
 			if err != nil {
 				writer.WriteHeader(500)
 				_, _ = fmt.Fprint(writer, "Writing body error: "+err.Error())

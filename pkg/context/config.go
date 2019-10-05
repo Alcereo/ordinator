@@ -52,6 +52,7 @@ type Filter struct {
 	CookieRenewBeforeHours int                `mapstructure:"cookie-renew-before-hours"`
 	UserDataTypeSerializer UserDataSerializer `mapstructure:"user-data-serializer"`
 	UserDataHeader         string             `mapstructure:"user-data-header"`
+	UserDataRequired       bool               `mapstructure:"user-data-required"`
 }
 
 type Router struct {

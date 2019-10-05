@@ -1,63 +1,69 @@
 package integration_test
 
 import (
-	"bytes"
 	"encoding/json"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"golang.org/x/net/publicsuffix"
 	"io/ioutil"
+	"log"
 	"net/http"
-	"net/url"
+	"net/http/cookiejar"
 )
 
-var _ = Describe("Request", func() {
+var _ = Describe("Ordinator gateway", func() {
 
-	It("Can reverse proxy to unblocked resources", func() {
-		resp, err := http.Get("http://localhost" + server.Addr + "/api/v1/resource")
-		if err != nil {
-			Fail(err.Error())
-		}
-		message, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			Fail(err.Error())
-		}
+	It("can reverse proxy to unblocked resources", func() {
+		resp, message := get("http://localhost" + server.Addr + "/api/v1/resource")
 		Expect(resp.StatusCode).To(Equal(200))
-		messageMap := make(map[string]string)
-		err = json.Unmarshal(message, &messageMap)
-		if err != nil {
-			Fail(err.Error())
-		}
+
+		messageMap := unmarshalToMap(message)
 		Expect(messageMap).To(HaveKeyWithValue("status", "OK"))
 		Expect(messageMap).To(HaveKeyWithValue("service", "resource"))
 		Expect(messageMap).To(HaveKeyWithValue("version", "v1"))
 	})
 
-	It("checkGoogleStub", func() {
-		params := url.Values{}
-		params.Add("code", "google-auth-code")
-		params.Add("client_id", "google-client-id-1")
-		params.Add("client_secret", "google-client-secret")
-		params.Add("redirect_uri", "http://localhost:8080/authentication/google")
-		params.Add("grant_type", "authorization_code")
+	It("can block access to resource", func() {
+		resp, _ := get("http://localhost" + server.Addr + "/api/v2/resource")
+		Expect(resp.StatusCode).To(Equal(401))
+	})
 
-		bodyReader := bytes.NewBufferString(params.Encode())
-		resp, err := http.Post(googleApiStub.URL+"/oauth2/v4/token",
-			"application/x-www-form-urlencoded",
-			bodyReader,
-		)
-		if err != nil {
-			Fail(err.Error())
-		}
-		response, err := ioutil.ReadAll(resp.Body)
-		defer resp.Body.Close()
-		if err != nil {
-			Fail(err.Error())
-		}
+	It("can authenticate in google", func() {
+		resp, message := get("http://localhost" + server.Addr + "/authentication/google?code=google-auth-code")
+		Expect(resp.StatusCode).To(Equal(200))
 
-		result := make(map[string]interface{})
-		err = json.Unmarshal(response, &result)
-		Expect(resp.StatusCode).To(Equal(200), "Body: %v", string(response))
-		Expect(result).To(HaveKeyWithValue("access_token", "access-token-1"), "Body: %v", string(response))
+		messageMap := unmarshalToMap(message)
+		Expect(messageMap).To(HaveKeyWithValue("status", "OK"))
+		Expect(messageMap).To(HaveKeyWithValue("service", "resource"))
+		Expect(messageMap).To(HaveKeyWithValue("version", "v2"))
 	})
 })
+
+func unmarshalToMap(message []byte) map[string]string {
+	messageMap := make(map[string]string)
+	if err := json.Unmarshal(message, &messageMap); err != nil {
+		Fail(err.Error())
+	}
+	return messageMap
+}
+
+func get(url string) (*http.Response, []byte) {
+	resp, err := buildClient().Get(url)
+	if err != nil {
+		Fail(err.Error())
+	}
+	message, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		Fail(err.Error())
+	}
+	return resp, message
+}
+
+func buildClient() *http.Client {
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &http.Client{Jar: jar}
+}

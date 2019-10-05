@@ -21,6 +21,19 @@ var resourceStub *httptest.Server
 
 var _ = BeforeSuite(func() {
 
+	//logrus.SetLevel(logrus.DebugLevel)
+	//logrus.SetFormatter(&logrus.TextFormatter{
+	//	ForceColors: true,
+	//})
+	//logrus.SetFormatter(&logrus.JSONFormatter{
+	//	TimestampFormat:  "",
+	//	DisableTimestamp: false,
+	//	DataKey:          "",
+	//	FieldMap:         nil,
+	//	CallerPrettyfier: nil,
+	//	PrettyPrint:      true,
+	//})
+
 	googleApiStub = createGoogleApiStub()
 	resourceStub = createResourceServiceStub()
 	context := NewContext()
@@ -40,13 +53,13 @@ var _ = BeforeSuite(func() {
 			Type:                   GoogleOauth2Authorization,
 			Pattern:                "/authentication/google",
 			CacheAdapterIdentifier: cacheAdapterIdentifier,
-			SuccessLoginUrl:        "/api/v2/",
+			SuccessLoginUrl:        "/api/v2/resource",
 			AccessTokenRequestUrl:  googleApiStub.URL + "/oauth2/v4/token",
 			UserInfoRequestUrl:     googleApiStub.URL + "/oauth2/v3/userinfo",
 			Filters: []Filter{
 				{
 					Type:                   SessionFilter,
-					Name:                   "Auth session filter",
+					Name:                   "session filter for google auth",
 					CacheAdapterIdentifier: cacheAdapterIdentifier,
 					CookieDomain:           "localhost",
 					CookiePath:             "/",
@@ -63,7 +76,7 @@ var _ = BeforeSuite(func() {
 			Filters: []Filter{
 				{
 					Type:                   SessionFilter,
-					Name:                   "Test session filter",
+					Name:                   "session filter for: /api/v2/",
 					CacheAdapterIdentifier: cacheAdapterIdentifier,
 					CookieDomain:           "localhost",
 					CookiePath:             "/",
@@ -72,8 +85,14 @@ var _ = BeforeSuite(func() {
 					CookieRenewBeforeHours: 2,
 				},
 				{
+					Type:                   UserAuthenticationFilter,
+					Name:                   "auth filter for: /api/v2/",
+					CacheAdapterIdentifier: cacheAdapterIdentifier,
+					UserDataRequired:       true,
+				},
+				{
 					Type:     LogFilter,
-					Name:     "Simple request log",
+					Name:     "log filter for: /api/v2/",
 					Template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}",
 				},
 			},
@@ -95,12 +114,15 @@ var _ = BeforeSuite(func() {
 				},
 				{
 					Type:     LogFilter,
-					Name:     "Simple request log",
+					Name:     "log filter for: /api/v1/",
 					Template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}",
 				},
 			},
 		},
-	}, GoogleSecret{})
+	}, GoogleSecret{
+		ClientId:     "google-client-id-1",
+		ClientSecret: "google-client-secret",
+	})
 	server = context.BuildServer(8080)
 	go func() {
 		defer GinkgoRecover()
@@ -145,7 +167,7 @@ func createResourceServiceStub() *httptest.Server {
 
 func createGoogleApiStub() *httptest.Server {
 	return CreateServiceStub([]RequestMock{
-		{
+		{ // Token retrieving request
 			Request: Request{
 				Method: "POST",
 				Url:    "/oauth2/v4/token",
@@ -177,6 +199,30 @@ func createGoogleApiStub() *httptest.Server {
 					"refresh_token": "refresh-token-1",
 					"expires_in":    9999,
 					"token_type":    "authorization_code",
+				},
+			},
+		},
+		{ // User data request
+			Request: Request{
+				Method: "GET",
+				Url:    "/oauth2/v3/userinfo",
+				Headers: []Header{
+					{
+						Name:   "Authorization",
+						Regexp: "^Bearer access-token-1$",
+					},
+				},
+			},
+			Response: Response{
+				Status: 200,
+				Headers: map[string]string{
+					"Content-Type": "application/json;charset=UTF-8",
+				},
+				Body: JsonMap{
+					"sub":    "user-identifier-1",
+					"name":   "Aleksandr kucheev",
+					"email":  "some@eamil.ru",
+					"locale": "ru",
 				},
 			},
 		},
