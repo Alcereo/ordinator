@@ -50,7 +50,7 @@ func loadConfig() *ctx.ProxyConfiguration {
 		panic(fmt.Errorf("Fatal error config file: %s \n", err))
 	}
 
-	viper.SetEnvPrefix("gw")
+	viper.SetEnvPrefix("")
 	_ = viper.BindEnv("GOOGLE_CLIENT_ID")
 	config.GoogleSecret.ClientId = viper.GetString("GOOGLE_CLIENT_ID")
 

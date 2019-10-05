@@ -6,21 +6,24 @@ import (
 	"fmt"
 	"github.com/Alcereo/ordinator/pkg/common"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"net/http"
 )
 
 type googleOAuth2Provider struct {
 	cacheProvider         UserAuthCachePort
-	successLoginUrl       string
-	googleClientId        string
-	googleClientSecret    string
-	domainUrl             string
-	grantType             string
-	authenticationUrl     string
-	accessTokenRequestUrl string
-	userInfoRequestUrl    string
+	SuccessLoginUrl       string `validate:"required"`
+	GoogleClientId        string `validate:"required"`
+	GoogleClientSecret    string `validate:"required"`
+	DomainUrl             string `validate:"required"`
+	GrantType             string `validate:"required"`
+	AuthenticationUrl     string `validate:"required"`
+	AccessTokenRequestUrl string `validate:"required"`
+	UserInfoRequestUrl    string `validate:"required"`
 }
+
+var validate = validator.New()
 
 func NewGoogleOAuth2Provider(
 	cacheProvider UserAuthCachePort,
@@ -30,17 +33,22 @@ func NewGoogleOAuth2Provider(
 	accessTokenRequestUrl string,
 	userInfoRequestUrl string,
 ) *googleOAuth2Provider {
-	return &googleOAuth2Provider{
+	provider := &googleOAuth2Provider{
 		cacheProvider:         cacheProvider,
-		successLoginUrl:       successLoginUrl,
-		googleClientId:        googleClientId,
-		googleClientSecret:    googleSecretId,
-		domainUrl:             "http://localhost:8080",
-		grantType:             "authorization_code",
-		authenticationUrl:     "/authentication/google",
-		accessTokenRequestUrl: accessTokenRequestUrl,
-		userInfoRequestUrl:    userInfoRequestUrl,
+		SuccessLoginUrl:       successLoginUrl,
+		GoogleClientId:        googleClientId,
+		GoogleClientSecret:    googleSecretId,
+		DomainUrl:             "http://localhost:8080",
+		GrantType:             "authorization_code",
+		AuthenticationUrl:     "/authentication/google",
+		AccessTokenRequestUrl: accessTokenRequestUrl,
+		UserInfoRequestUrl:    userInfoRequestUrl,
 	}
+	err := validate.Struct(provider)
+	if err != nil {
+		panic(err.Error())
+	}
+	return provider
 }
 
 func (router *googleOAuth2Provider) Handle(log *logrus.Entry, writer http.ResponseWriter, request *http.Request) {
@@ -57,7 +65,7 @@ func (router *googleOAuth2Provider) Handle(log *logrus.Entry, writer http.Respon
 	_, found := router.cacheProvider.FindUserData(session)
 	if found {
 		log.Debugf("User data for session already exist. Skip authentication.")
-		http.Redirect(writer, request, router.successLoginUrl, 302)
+		http.Redirect(writer, request, router.SuccessLoginUrl, 302)
 		return
 	}
 
@@ -82,7 +90,7 @@ func (router *googleOAuth2Provider) Handle(log *logrus.Entry, writer http.Respon
 	}
 
 	log.Debugf("User data successful retrieved and stored to cache. %v", userData)
-	http.Redirect(writer, request, router.successLoginUrl, 302)
+	http.Redirect(writer, request, router.SuccessLoginUrl, 302)
 }
 
 func (router *googleOAuth2Provider) getUserData(log *logrus.Entry, accessCode *string) (*common.UserData, error) {
@@ -126,10 +134,10 @@ func (router *googleOAuth2Provider) retrieveAccessToken(accessCode string) (*Goo
 
 	requestPayload := GoogleRequestBuilder{
 		Code:         accessCode,
-		ClientId:     router.googleClientId,
-		ClientSecret: router.googleClientSecret,
-		RedirectUri:  router.domainUrl + router.authenticationUrl,
-		GrantType:    router.grantType,
+		ClientId:     router.GoogleClientId,
+		ClientSecret: router.GoogleClientSecret,
+		RedirectUri:  router.DomainUrl + router.AuthenticationUrl,
+		GrantType:    router.GrantType,
 	}
 
 	req, err := router.buildAccessTokenRequest(requestPayload)
@@ -152,7 +160,7 @@ func (router *googleOAuth2Provider) retrieveAccessToken(accessCode string) (*Goo
 func (router *googleOAuth2Provider) buildAccessTokenRequest(requestPayload GoogleRequestBuilder) (*http.Request, error) {
 	req, err := http.NewRequest(
 		"POST",
-		router.accessTokenRequestUrl,
+		router.AccessTokenRequestUrl,
 		bytes.NewBuffer([]byte(requestPayload.String())),
 	)
 	if err != nil {
@@ -185,7 +193,7 @@ func (router *googleOAuth2Provider) getUserInfo(accessToken string) (*GoogleUser
 func (router *googleOAuth2Provider) buildRequestToGoogleApi(accessToken string) (*http.Request, error) {
 	req, err := http.NewRequest(
 		"GET",
-		router.userInfoRequestUrl,
+		router.UserInfoRequestUrl,
 		nil,
 	)
 	if err != nil {
