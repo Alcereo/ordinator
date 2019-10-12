@@ -71,34 +71,6 @@ var _ = BeforeSuite(func() {
 		},
 		{
 			Type:      ReverseProxy,
-			Pattern:   "/api/v2/",
-			TargetUrl: resourceStub.URL,
-			Filters: []Filter{
-				{
-					Type:                   SessionFilter,
-					Name:                   "session filter for: /api/v2/",
-					CacheAdapterIdentifier: cacheAdapterIdentifier,
-					CookieDomain:           "localhost",
-					CookiePath:             "/",
-					CookieName:             "session",
-					CookieTTLHours:         24,
-					CookieRenewBeforeHours: 2,
-				},
-				{
-					Type:                   UserAuthenticationFilter,
-					Name:                   "auth filter for: /api/v2/",
-					CacheAdapterIdentifier: cacheAdapterIdentifier,
-					UserDataRequired:       true,
-				},
-				{
-					Type:     LogFilter,
-					Name:     "log filter for: /api/v2/",
-					Template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}",
-				},
-			},
-		},
-		{
-			Type:      ReverseProxy,
 			Pattern:   "/api/v1/",
 			TargetUrl: resourceStub.URL,
 			Filters: []Filter{
@@ -119,6 +91,80 @@ var _ = BeforeSuite(func() {
 				},
 			},
 		},
+		{
+			Type:      ReverseProxy,
+			Pattern:   "/api/v2/",
+			TargetUrl: resourceStub.URL,
+			Filters: []Filter{
+				{
+					Type:                   SessionFilter,
+					Name:                   "session filter for: /api/v2/",
+					CacheAdapterIdentifier: cacheAdapterIdentifier,
+					CookieDomain:           "localhost",
+					CookiePath:             "/",
+					CookieName:             "session",
+					CookieTTLHours:         24,
+					CookieRenewBeforeHours: 2,
+				},
+				{
+					Type:                   UserAuthenticationFilter,
+					Name:                   "auth filter for: /api/v2/",
+					CacheAdapterIdentifier: cacheAdapterIdentifier,
+					UserDataRequired:       true,
+				},
+				{
+					Type:       CsrfFilter,
+					Name:       "Csrf filter for v2",
+					CsrfHeader: "X-CSRF-TOKEN",
+					CsrfSafeMethods: []string{
+						"GET",
+					},
+					CsrfEncryptorPrivateKey: "some-private-key",
+				},
+				{
+					Type:     LogFilter,
+					Name:     "log filter for: /api/v2/",
+					Template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}",
+				},
+			},
+		},
+		{
+			Type:      ReverseProxy,
+			Pattern:   "/api/v3/",
+			TargetUrl: resourceStub.URL,
+			Filters: []Filter{
+				{
+					Type:                   SessionFilter,
+					Name:                   "session filter for: /api/v3/",
+					CacheAdapterIdentifier: cacheAdapterIdentifier,
+					CookieDomain:           "localhost",
+					CookiePath:             "/",
+					CookieName:             "session",
+					CookieTTLHours:         24,
+					CookieRenewBeforeHours: 2,
+				},
+				{
+					Type:                   UserAuthenticationFilter,
+					Name:                   "auth filter for: /api/v3/",
+					CacheAdapterIdentifier: cacheAdapterIdentifier,
+					UserDataRequired:       true,
+				},
+				{
+					Type:       CsrfFilter,
+					Name:       "Csrf filter for v3",
+					CsrfHeader: "X-CSRF-TOKEN",
+					CsrfSafeMethods: []string{
+						"GET",
+					},
+					CsrfEncryptorPrivateKey: "some-private-key",
+				},
+				{
+					Type:     LogFilter,
+					Name:     "log filter for: /api/v3/",
+					Template: "METHOD:{{.Request.Method}} PATH:{{.Request.URL}} SESSION_ID:{{(.Request.Context.Value \"SessionContextKey\").Id}}",
+				},
+			},
+		},
 	}, GoogleSecret{
 		ClientId:     "google-client-id-1",
 		ClientSecret: "google-client-secret",
@@ -132,6 +178,21 @@ var _ = BeforeSuite(func() {
 
 func createResourceServiceStub() *httptest.Server {
 	return CreateServiceStub([]RequestMock{
+		{
+			Request: Request{
+				Method: "POST",
+				Url:    "/api/v3/mutable-resource",
+			},
+			Response: Response{
+				Status:  201,
+				Headers: nil,
+				Body: JsonMap{
+					"status":  "OK",
+					"service": "resource",
+					"version": "v3",
+				},
+			},
+		},
 		{
 			Request: Request{
 				Method: "GET",

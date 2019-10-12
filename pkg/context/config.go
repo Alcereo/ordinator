@@ -14,6 +14,7 @@ const (
 	SessionFilter            FilterType = "SessionFilter"
 	UserAuthenticationFilter FilterType = "UserAuthenticationFilter"
 	UserDataSenderFilter     FilterType = "UserDataSenderFilter"
+	CsrfFilter               FilterType = "CsrfFilter"
 )
 
 type CacheAdapterType string
@@ -41,18 +42,21 @@ type UserDataSerializer struct {
 }
 
 type Filter struct {
-	Type                   FilterType
-	Name                   string
-	Template               string
-	CacheAdapterIdentifier string             `mapstructure:"cache-adapter-identifier"`
-	CookieDomain           string             `mapstructure:"cookie-domain"`
-	CookiePath             string             `mapstructure:"cookie-path"`
-	CookieName             string             `mapstructure:"cookie-name"`
-	CookieTTLHours         int                `mapstructure:"cookie-ttl-hours"`
-	CookieRenewBeforeHours int                `mapstructure:"cookie-renew-before-hours"`
-	UserDataTypeSerializer UserDataSerializer `mapstructure:"user-data-serializer"`
-	UserDataHeader         string             `mapstructure:"user-data-header"`
-	UserDataRequired       bool               `mapstructure:"user-data-required"`
+	Type                    FilterType
+	Name                    string
+	Template                string
+	CacheAdapterIdentifier  string             `mapstructure:"cache-adapter-identifier"`
+	CookieDomain            string             `mapstructure:"cookie-domain"`
+	CookiePath              string             `mapstructure:"cookie-path"`
+	CookieName              string             `mapstructure:"cookie-name"`
+	CookieTTLHours          int                `mapstructure:"cookie-ttl-hours"`
+	CookieRenewBeforeHours  int                `mapstructure:"cookie-renew-before-hours"`
+	UserDataTypeSerializer  UserDataSerializer `mapstructure:"user-data-serializer"`
+	UserDataHeader          string             `mapstructure:"user-data-header"`
+	UserDataRequired        bool               `mapstructure:"user-data-required"`
+	CsrfHeader              string             `mapstructure:"csrf-header"`
+	CsrfSafeMethods         []string           `mapstructure:"csrf-safe-methods"`
+	CsrfEncryptorPrivateKey string             `mapstructure:"csrf-encryptor-private-key"`
 }
 
 type Router struct {

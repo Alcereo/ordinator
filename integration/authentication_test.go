@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"bytes"
 	"encoding/json"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -11,9 +12,9 @@ import (
 	"net/http/cookiejar"
 )
 
-var _ = Describe("Ordinator gateway", func() {
+var _ = Describe("In ordinator gateway", func() {
 
-	It("can reverse proxy to unblocked resources", func() {
+	It("ReverseProxy can proxy to resources", func() {
 		resp, message := get("http://localhost" + server.Addr + "/api/v1/resource")
 		Expect(resp.StatusCode).To(Equal(200))
 
@@ -23,12 +24,12 @@ var _ = Describe("Ordinator gateway", func() {
 		Expect(messageMap).To(HaveKeyWithValue("version", "v1"))
 	})
 
-	It("can block access to resource", func() {
+	It("UserAuthenticationFilter can block access to resource", func() {
 		resp, _ := get("http://localhost" + server.Addr + "/api/v2/resource")
 		Expect(resp.StatusCode).To(Equal(401))
 	})
 
-	It("can authenticate in google", func() {
+	It("GoogleOauth2Authorization can authenticate in google", func() {
 		resp, message := get("http://localhost" + server.Addr + "/authentication/google?code=google-auth-code")
 		Expect(resp.StatusCode).To(Equal(200))
 
@@ -48,7 +49,39 @@ func unmarshalToMap(message []byte) map[string]string {
 }
 
 func get(url string) (*http.Response, []byte) {
-	resp, err := buildClient().Get(url)
+	return getByClient(buildClient(), url)
+}
+
+func getByClient(client *http.Client, url string) (*http.Response, []byte) {
+	resp, err := client.Get(url)
+	if err != nil {
+		Fail(err.Error())
+	}
+	message, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		Fail(err.Error())
+	}
+	return resp, message
+}
+
+type requestMutator func(r *http.Request) *http.Request
+
+func postJsonByClient(client *http.Client, url string, body interface{}, mutator requestMutator) (*http.Response, []byte) {
+	bytesValue, err := json.Marshal(body)
+	if err != nil {
+		Fail(err.Error())
+	}
+	request, err := http.NewRequest(
+		"POST",
+		url,
+		bytes.NewReader(bytesValue),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	if mutator != nil {
+		request = mutator(request)
+	}
+	resp, err := client.Do(request)
 	if err != nil {
 		Fail(err.Error())
 	}

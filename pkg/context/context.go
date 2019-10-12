@@ -167,6 +167,14 @@ func (ctx *context) BuildFilterHandler(filter Filter) common.RequestChainedHandl
 			serializer,
 			filter.UserDataHeader,
 		)
+	case CsrfFilter:
+		log.Debugf("Adding csrf filter. Name: %s", filter.Name)
+		return filters.NewCsrfFilter(
+			filter.Name,
+			filter.CsrfHeader,
+			filter.CsrfSafeMethods,
+			filter.CsrfEncryptorPrivateKey,
+		)
 	default:
 		panic(fmt.Errorf("Undefined filter type: %v.\n", filter.Type))
 	}
