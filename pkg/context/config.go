@@ -57,6 +57,7 @@ type Filter struct {
 	CsrfHeader              string             `mapstructure:"csrf-header"`
 	CsrfSafeMethods         []string           `mapstructure:"csrf-safe-methods"`
 	CsrfEncryptorPrivateKey string             `mapstructure:"csrf-encryptor-private-key"`
+	RedirectPage            string             `mapstructure:"redirect-page"`
 }
 
 type Router struct {

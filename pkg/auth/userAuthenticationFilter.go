@@ -18,18 +18,21 @@ type userAuthenticationFilter struct {
 	cacheProvider    UserAuthCachePort
 	Name             string
 	userDataRequired bool
+	redirectPage     string
 }
 
 func NewUserAuthenticationFilter(
 	cacheProvider UserAuthCachePort,
 	Name string,
 	userDataRequired bool,
+	redirectPage string,
 ) *userAuthenticationFilter {
 	return &userAuthenticationFilter{
 		next:             nil,
 		cacheProvider:    cacheProvider,
 		Name:             Name,
 		userDataRequired: userDataRequired,
+		redirectPage:     redirectPage,
 	}
 }
 
@@ -39,7 +42,11 @@ func (filter *userAuthenticationFilter) Handle(log *log.Entry, writer http.Respo
 	if err != nil {
 		if filter.userDataRequired {
 			log.Debugf("Getting user data for session error. Reason: %v", err.Error())
-			writer.WriteHeader(401)
+			if filter.redirectPage != "" {
+				http.Redirect(writer, request, filter.redirectPage, 302)
+			} else {
+				writer.WriteHeader(401)
+			}
 			return
 		} else {
 			log.Debugf("Getting user data for session error. Reason: %v", err.Error())

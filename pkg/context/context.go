@@ -153,6 +153,7 @@ func (ctx *context) BuildFilterHandler(filter Filter) common.RequestChainedHandl
 			cacheAdapter,
 			filter.Name,
 			filter.UserDataRequired,
+			filter.RedirectPage,
 		)
 	case UserDataSenderFilter:
 		log.Debugf("Adding user data sending filter. Name: %s", filter.Name)

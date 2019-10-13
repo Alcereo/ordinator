@@ -165,6 +165,47 @@ var _ = BeforeSuite(func() {
 				},
 			},
 		},
+		{
+			Type:      ReverseProxy,
+			Pattern:   "/pages/work-page",
+			TargetUrl: resourceStub.URL,
+			Filters: []Filter{
+				{
+					Type:                   SessionFilter,
+					Name:                   "session filter for main page",
+					CacheAdapterIdentifier: cacheAdapterIdentifier,
+					CookieDomain:           "localhost",
+					CookiePath:             "/",
+					CookieName:             "session",
+					CookieTTLHours:         24,
+					CookieRenewBeforeHours: 2,
+				},
+				{
+					Type:                   UserAuthenticationFilter,
+					Name:                   "auth filter for main page",
+					CacheAdapterIdentifier: cacheAdapterIdentifier,
+					UserDataRequired:       true,
+					RedirectPage:           "/pages/login-page",
+				},
+			},
+		},
+		{
+			Type:      ReverseProxy,
+			Pattern:   "/pages/login-page",
+			TargetUrl: resourceStub.URL,
+			Filters: []Filter{
+				{
+					Type:                   SessionFilter,
+					Name:                   "session filter for login page",
+					CacheAdapterIdentifier: cacheAdapterIdentifier,
+					CookieDomain:           "localhost",
+					CookiePath:             "/",
+					CookieName:             "session",
+					CookieTTLHours:         24,
+					CookieRenewBeforeHours: 2,
+				},
+			},
+		},
 	}, GoogleSecret{
 		ClientId:     "google-client-id-1",
 		ClientSecret: "google-client-secret",
@@ -220,6 +261,36 @@ func createResourceServiceStub() *httptest.Server {
 					"status":  "OK",
 					"service": "resource",
 					"version": "v1",
+				},
+			},
+		},
+		{
+			Request: Request{
+				Method: "GET",
+				Url:    "/pages/work-page",
+			},
+			Response: Response{
+				Status:  200,
+				Headers: nil,
+				Body: JsonMap{
+					"status":  "OK",
+					"service": "pages",
+					"version": "work-page",
+				},
+			},
+		},
+		{
+			Request: Request{
+				Method: "GET",
+				Url:    "/pages/login-page",
+			},
+			Response: Response{
+				Status:  200,
+				Headers: nil,
+				Body: JsonMap{
+					"status":  "OK",
+					"service": "pages",
+					"version": "login-page",
 				},
 			},
 		},
